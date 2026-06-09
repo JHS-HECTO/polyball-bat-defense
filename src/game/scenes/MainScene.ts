@@ -295,79 +295,53 @@ export class MainScene extends Phaser.Scene {
   }
 
   private drawEgg(x: number, y: number): void {
-    const g = this.add.graphics();
-    g.setDepth(8);
     // 그림자
-    g.fillStyle(0x2c1d12, 0.32);
-    g.fillEllipse(x, y + 20, 36, 10);
-    // 알 본체 (타원, 빨간빛)
-    g.fillStyle(0xe25555, 1);
-    g.lineStyle(2, 0x6f2222, 1);
-    g.fillEllipse(x, y, 28, 36);
-    g.strokeEllipse(x, y, 28, 36);
-    // 하이라이트
-    g.fillStyle(0xff8c8c, 0.7);
-    g.fillEllipse(x - 5, y - 6, 10, 16);
-    // 점박이 패턴
-    g.fillStyle(0x6f2222, 0.7);
-    g.fillCircle(x - 3, y + 4, 2);
-    g.fillCircle(x + 4, y + 10, 1.5);
-    g.fillCircle(x + 2, y - 8, 1.5);
-    // 빛나는 글로우
-    g.lineStyle(2, 0xffd35e, 0.4);
-    g.strokeEllipse(x, y, 32, 40);
+    const sh = this.add.graphics();
+    sh.setDepth(7);
+    sh.fillStyle(0x2c1d12, 0.32);
+    sh.fillEllipse(x, y + 22, 32, 10);
+    // 글로우 후광
+    const glow = this.add.graphics();
+    glow.setDepth(7);
+    glow.fillStyle(0xffd35e, 0.25);
+    glow.fillCircle(x, y, 32);
+    // Twemoji 알
+    const img = this.add.image(x, y, 'emoji-egg');
+    img.setDisplaySize(48, 48);
+    img.setDepth(8);
+    // 알 펄스 트윈
+    this.tweens.add({
+      targets: img,
+      scale: img.scale * 1.08,
+      duration: 900,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
   }
 
   private drawFlag(x: number, y: number): void {
-    const g = this.add.graphics();
-    g.setDepth(8);
     // 그림자
-    g.fillStyle(0x2c1d12, 0.3);
-    g.fillEllipse(x, y + 30, 28, 8);
-    // 깃대
-    g.fillStyle(PALETTE.flagPole, 1);
-    g.fillRect(x - 2, y - 30, 3, 60);
-    // 깃발 (검은색 = 적의 깃발)
-    g.fillStyle(0x2c1d12, 1);
-    g.lineStyle(1.5, 0x000000, 1);
-    g.fillTriangle(x + 1, y - 28, x + 22, y - 22, x + 1, y - 14);
-    g.strokeTriangle(x + 1, y - 28, x + 22, y - 22, x + 1, y - 14);
-    // 해골 마크
-    g.fillStyle(0xfffaf2, 1);
-    g.fillCircle(x + 8, y - 21, 3);
-    g.fillStyle(0x2c1d12, 1);
-    g.fillRect(x + 6, y - 22, 1, 1);
-    g.fillRect(x + 9, y - 22, 1, 1);
+    const sh = this.add.graphics();
+    sh.setDepth(7);
+    sh.fillStyle(0x2c1d12, 0.32);
+    sh.fillEllipse(x, y + 26, 36, 10);
+    // Twemoji 깃발
+    const img = this.add.image(x, y - 4, 'emoji-flag');
+    img.setDisplaySize(50, 50);
+    img.setDepth(8);
   }
 
   private drawCastle(x: number, y: number): void {
-    // 작은 성채 (오른쪽 끝)
-    const g = this.add.graphics();
-    g.setDepth(8);
     // 그림자
-    g.fillStyle(0x2c1d12, 0.25);
-    g.fillEllipse(x, y + 30, 64, 14);
-    // 본체
-    g.fillStyle(PALETTE.castleStone, 1);
-    g.lineStyle(2, PALETTE.castleStoneDark, 1);
-    g.fillRoundedRect(x - 24, y - 18, 48, 50, 4);
-    g.strokeRoundedRect(x - 24, y - 18, 48, 50, 4);
-    // 톱니
-    for (let i = -2; i <= 2; i += 1) {
-      const cx = x + i * 10;
-      g.fillRect(cx - 3, y - 24, 6, 8);
-      g.strokeRect(cx - 3, y - 24, 6, 8);
-    }
-    // 입구
-    g.fillStyle(0x6b4523, 1);
-    g.lineStyle(1.5, 0x3e2710, 1);
-    g.fillRoundedRect(x - 6, y, 12, 18, { tl: 6, tr: 6, bl: 0, br: 0 });
-    g.strokeRoundedRect(x - 6, y, 12, 18, { tl: 6, tr: 6, bl: 0, br: 0 });
-    // 깃발
-    g.fillStyle(PALETTE.flagPole, 1);
-    g.fillRect(x - 1, y - 50, 2, 26);
-    g.fillStyle(PALETTE.flagCloth, 1);
-    g.fillTriangle(x + 1, y - 50, x + 14, y - 44, x + 1, y - 38);
+    const sh = this.add.graphics();
+    sh.setDepth(7);
+    sh.fillStyle(0x2c1d12, 0.32);
+    sh.fillEllipse(x, y + 32, 64, 12);
+    // Twemoji 성
+    const img = this.add.image(x, y, 'emoji-castle');
+    img.setDisplaySize(72, 72);
+    img.setDepth(8);
   }
 
   private drawTreesAndFlowers(): void {

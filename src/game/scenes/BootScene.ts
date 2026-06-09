@@ -6,6 +6,20 @@ export class BootScene extends Phaser.Scene {
     super({ key: 'Boot' });
   }
 
+  preload(): void {
+    // Twemoji 스프라이트 (Twitter CC-BY 4.0)
+    const emojis = [
+      'bat', 'bow', 'crystal', 'bomb',          // 유닛
+      'skull', 'ogre', 'slime', 'ghost', 'batmob', // 일반 몹
+      'dragon',                                  // 보스
+      'egg', 'castle', 'flag', 'coin',          // 환경/UI
+      'boy', 'knight',                          // 캐릭터 베이스
+    ];
+    for (const e of emojis) {
+      this.load.image(`emoji-${e}`, `/images/emoji/${e}.png`);
+    }
+  }
+
   create(): void {
     this.generateProceduralTextures();
     this.scene.start('Main');
@@ -14,7 +28,7 @@ export class BootScene extends Phaser.Scene {
   private generateProceduralTextures(): void {
     {
       const g = this.add.graphics();
-      g.fillStyle(0x2c1d12, 0.22);
+      g.fillStyle(0x2c1d12, 0.32);
       g.fillEllipse(40, 12, 80, 22);
       g.generateTexture('shadow', 80, 24);
       g.destroy();
@@ -24,7 +38,7 @@ export class BootScene extends Phaser.Scene {
       const g = this.add.graphics();
       g.fillStyle(PALETTE.grass, 1);
       g.fillRect(0, 0, size, size);
-      g.fillStyle(PALETTE.grassDark, 0.6);
+      g.fillStyle(PALETTE.grassDark, 0.55);
       g.fillCircle(12, 18, 3);
       g.fillCircle(40, 8, 2);
       g.fillCircle(50, 44, 3);
