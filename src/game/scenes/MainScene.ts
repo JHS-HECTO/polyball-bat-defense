@@ -735,6 +735,7 @@ export class MainScene extends Phaser.Scene {
 
   private unitFires(unit: Unit, target: Mob): void {
     const color = unit.profile.color;
+    unit.triggerSwing();
     if (unit.unitType === 'melee') {
       // AOE 즉시 데미지
       this.applyDamage(unit.x, unit.y, unit.profile.damage, unit.profile.splashRadius ?? 100, color);
