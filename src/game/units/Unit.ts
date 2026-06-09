@@ -31,6 +31,9 @@ export class Unit extends Phaser.GameObjects.Container {
   private idleTimeline: number = 0;
   private hovered: boolean = false;
   private swingAnimMs: number = 0;
+  private targetAngle: number = -Math.PI / 4;       // 기본 우측 위
+  private targetDist: number = 40;
+  private lungeMs: number = 0;
 
   constructor(scene: Phaser.Scene, x: number, y: number, type: UnitType, level: UnitLevel, slotIndex: number) {
     super(scene, x, y);
@@ -179,29 +182,51 @@ export class Unit extends Phaser.GameObjects.Container {
     const swing = this.swingAnimMs > 0 ? Math.sin((this.swingAnimMs / 220) * Math.PI) : 0;
 
     if (this.unitType === 'melee') {
-      // 빠따 (사선)
-      const ang = -0.6 + swing * 1.4;
-      const sx = 6;
-      const sy = -2 + bob;
-      const len = 12 + this.level * 0.6;
+      // 빠따 — 몹 방향으로 휘두름
+      // swing 0~1: 휘두르는 진행도. 0=뒤로 젖힘, 1=앞으로 끝까지
+      const baseAng = this.targetAngle;
+      // 뒤→앞 회전 (휘두름 호)
+      const arc = (swing - 0.5) * 1.6;
+      const ang = baseAng + arc;
+      const sx = 0;
+      const sy = 0;
+      // 길이: 타겟까지 도달 (swing 절정에 가장 늘어남)
+      const reach = Math.min(this.targetDist - 6, 200);
+      const baseLen = 14 + this.level * 0.8;
+      const len = Math.max(baseLen, reach * Math.max(0, Math.sin(swing * Math.PI) * 1.0 + 0.3));
       const ex = sx + Math.cos(ang) * len;
       const ey = sy + Math.sin(ang) * len;
-      g.lineStyle(2.5 + this.level * 0.2, this.batColor(), 1);
+      const thickness = 4 + this.level * 0.3;
+      // 빠따 본체 (두꺼운 선)
+      g.lineStyle(thickness, this.batColor(), 1);
       g.beginPath();
       g.moveTo(sx, sy);
       g.lineTo(ex, ey);
       g.strokePath();
-      // 외곽선
-      g.lineStyle(0.8, s.outline, 1);
+      // 빠따 외곽선
+      g.lineStyle(1, s.outline, 1);
       g.beginPath();
       g.moveTo(sx, sy);
       g.lineTo(ex, ey);
       g.strokePath();
-      // 끝 굵게
+      // 끝부분 동그란 헤드
       g.fillStyle(this.batColor(), 1);
-      g.lineStyle(0.8, s.outline, 1);
-      g.fillCircle(ex, ey, 2 + this.level * 0.15);
-      g.strokeCircle(ex, ey, 2 + this.level * 0.15);
+      g.lineStyle(1, s.outline, 1);
+      g.fillCircle(ex, ey, 3.5 + this.level * 0.25);
+      g.strokeCircle(ex, ey, 3.5 + this.level * 0.25);
+      // 스윙 잔상 (호 트레일)
+      if (swing > 0.1 && swing < 0.95) {
+        g.lineStyle(2, this.batColor(), 0.35);
+        for (let i = 1; i <= 3; i += 1) {
+          const a = baseAng + (swing - 0.5 - i * 0.12) * 1.6;
+          const lx = sx + Math.cos(a) * len;
+          const ly = sy + Math.sin(a) * len;
+          g.beginPath();
+          g.moveTo(sx, sy);
+          g.lineTo(lx, ly);
+          g.strokePath();
+        }
+      }
     } else if (this.unitType === 'ranged') {
       // 활
       const bx = -8;
@@ -314,13 +339,21 @@ export class Unit extends Phaser.GameObjects.Container {
     return sellRefund(this.level);
   }
 
-  triggerSwing(): void {
+  triggerSwing(targetX?: number, targetY?: number): void {
     this.swingAnimMs = 220;
+    this.lungeMs = 220;
+    if (targetX !== undefined && targetY !== undefined) {
+      const dx = targetX - this.x;
+      const dy = targetY - this.y;
+      this.targetAngle = Math.atan2(dy, dx);
+      this.targetDist = Math.hypot(dx, dy);
+    }
   }
 
   tickAnim(deltaMs: number): void {
     this.idleTimeline += deltaMs;
     if (this.swingAnimMs > 0) this.swingAnimMs -= deltaMs;
+    if (this.lungeMs > 0) this.lungeMs -= deltaMs;
     this.drawCharacter();
     if (this.cooldownLeft > 0) this.cooldownLeft -= deltaMs;
   }

@@ -11,22 +11,15 @@ export const WORLD = {
   characterY: 605,
 } as const;
 
-// S-커브 경로 (위→아래). spline 컨트롤 포인트
+// 직선 세로 path (왼쪽 lane). 알키우기 스타일.
+// 몹: 위에서 아래로 한 줄로 내려옴. 슬롯: 오른쪽 영역에 배치.
 export const PATH_POINTS: ReadonlyArray<{ x: number; y: number }> = [
-  { x: 270, y: 160 },  // 시작 (깃발)
-  { x: 410, y: 250 },
-  { x: 430, y: 360 },
-  { x: 270, y: 430 },
-  { x: 110, y: 510 },
-  { x: 95, y: 620 },
-  { x: 220, y: 700 },
-  { x: 380, y: 780 },
-  { x: 410, y: 880 },
-  { x: 270, y: 940 },  // 끝 (성채)
+  { x: 120, y: 150 },  // 시작 (깃발 — 상단)
+  { x: 120, y: 950 },  // 끝 (성채 — 하단)
 ];
 
-export const PATH_WIDTH = 68;
-export const PATH_EDGE_WIDTH = 76;
+export const PATH_WIDTH = 76;
+export const PATH_EDGE_WIDTH = 86;
 
 export const PALETTE = {
   surfaceBase: 0xfff7ea,

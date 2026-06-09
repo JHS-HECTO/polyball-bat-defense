@@ -219,37 +219,63 @@ export class MainScene extends Phaser.Scene {
   private buildPath(): void {
     const head = PATH_POINTS[0];
     if (!head) return;
-    const rest = PATH_POINTS.slice(1).map((p) => new Phaser.Math.Vector2(p.x, p.y));
     this.path = new Phaser.Curves.Path(head.x, head.y);
-    this.path.splineTo(rest);
+    for (let i = 1; i < PATH_POINTS.length; i += 1) {
+      const p = PATH_POINTS[i]!;
+      this.path.lineTo(p.x, p.y);
+    }
     this.pathLength = this.path.getLength();
   }
 
   private drawPath(): void {
-    const shadow = this.add.graphics();
-    shadow.setDepth(2);
-    shadow.lineStyle(PATH_EDGE_WIDTH + 8, 0x2c1d12, 0.18);
-    this.path.draw(shadow, 96);
-
-    const edge = this.add.graphics();
-    edge.setDepth(3);
-    edge.lineStyle(PATH_EDGE_WIDTH, PALETTE.pathDark, 1);
-    this.path.draw(edge, 96);
-
-    const inner = this.add.graphics();
-    inner.setDepth(4);
-    inner.lineStyle(PATH_WIDTH, PALETTE.path, 1);
-    this.path.draw(inner, 96);
-
+    // 알키우기 톤: 직선 lane 박스 + 나무 plank 외곽선
+    const head = PATH_POINTS[0]!;
+    const tail = PATH_POINTS[PATH_POINTS.length - 1]!;
+    const cx = head.x;
+    const top = head.y - 30;
+    const bot = tail.y + 30;
+    const halfW = PATH_WIDTH / 2;
+    const planks = 8;
+    // 그림자
+    const sh = this.add.graphics();
+    sh.setDepth(2);
+    sh.fillStyle(0x2c1d12, 0.18);
+    sh.fillRoundedRect(cx - halfW - 8, top - 4, halfW * 2 + 16, bot - top + 8, 4);
+    // path 본체 (밝은 흙)
+    const lane = this.add.graphics();
+    lane.setDepth(3);
+    lane.fillStyle(PALETTE.path, 1);
+    lane.fillRect(cx - halfW, top, halfW * 2, bot - top);
+    // 어두운 점박이
     const speckle = this.add.graphics();
-    speckle.setDepth(5);
-    for (let i = 0; i < 80; i += 1) {
-      const t = i / 80;
-      const p = this.path.getPoint(t);
-      const ox = (Math.random() - 0.5) * 18;
-      const oy = (Math.random() - 0.5) * 18;
-      speckle.fillStyle(PALETTE.pathDark, 0.5);
-      speckle.fillCircle(p.x + ox, p.y + oy, 1.5);
+    speckle.setDepth(4);
+    speckle.fillStyle(PALETTE.pathDark, 0.5);
+    for (let i = 0; i < 60; i += 1) {
+      const x = cx + (Math.random() - 0.5) * (halfW * 1.8);
+      const y = top + Math.random() * (bot - top);
+      speckle.fillCircle(x, y, 1 + Math.random() * 1.4);
+    }
+    // 왼쪽 나무 plank 외곽선
+    const left = this.add.graphics();
+    left.setDepth(5);
+    const plankW = 10;
+    const plankH = (bot - top) / planks;
+    for (let i = 0; i < planks; i += 1) {
+      const y = top + i * plankH;
+      left.fillStyle(0x8b5a2b, 1);
+      left.lineStyle(1.5, 0x4d2e10, 1);
+      left.fillRect(cx - halfW - plankW, y, plankW, plankH - 1);
+      left.strokeRect(cx - halfW - plankW, y, plankW, plankH - 1);
+    }
+    // 오른쪽 나무 plank 외곽선
+    const right = this.add.graphics();
+    right.setDepth(5);
+    for (let i = 0; i < planks; i += 1) {
+      const y = top + i * plankH;
+      right.fillStyle(0x8b5a2b, 1);
+      right.lineStyle(1.5, 0x4d2e10, 1);
+      right.fillRect(cx + halfW, y, plankW, plankH - 1);
+      right.strokeRect(cx + halfW, y, plankW, plankH - 1);
     }
   }
 
@@ -735,11 +761,14 @@ export class MainScene extends Phaser.Scene {
 
   private unitFires(unit: Unit, target: Mob): void {
     const color = unit.profile.color;
-    unit.triggerSwing();
+    unit.triggerSwing(target.x, target.y);
     if (unit.unitType === 'melee') {
-      // AOE 즉시 데미지
-      this.applyDamage(unit.x, unit.y, unit.profile.damage, unit.profile.splashRadius ?? 100, color);
-      this.swingFx(unit.x, unit.y, unit.profile.splashRadius ?? 100, color);
+      // 데미지 — 타겟 위치 기준 AOE (몹 있는 곳에서 휘두른 효과)
+      this.applyDamage(target.x, target.y, unit.profile.damage, unit.profile.splashRadius ?? 80, color);
+      // 잔상 = 유닛에서 타겟으로 향하는 라인 FX
+      this.batSwingFx(unit.x, unit.y, target.x, target.y, color);
+      // 임팩트 = 타겟 위치 원
+      this.swingFx(target.x, target.y, unit.profile.splashRadius ?? 80, color);
       return;
     }
     // 발사체 (ranged/magic/bomb)
@@ -858,6 +887,32 @@ export class MainScene extends Phaser.Scene {
         g.clear();
         g.lineStyle(5, color, s.a);
         g.strokeCircle(cx, cy, s.r);
+      },
+      onComplete: () => g.destroy(),
+    });
+  }
+
+  private batSwingFx(sx: number, sy: number, ex: number, ey: number, color: number): void {
+    const g = this.add.graphics();
+    g.setDepth(29);
+    const s = { a: 0.7 };
+    this.tweens.add({
+      targets: s,
+      a: 0,
+      duration: 200,
+      ease: 'Cubic.easeOut',
+      onUpdate: () => {
+        g.clear();
+        g.lineStyle(5, 0xffffff, s.a);
+        g.beginPath();
+        g.moveTo(sx, sy);
+        g.lineTo(ex, ey);
+        g.strokePath();
+        g.lineStyle(2, color, s.a);
+        g.beginPath();
+        g.moveTo(sx, sy);
+        g.lineTo(ex, ey);
+        g.strokePath();
       },
       onComplete: () => g.destroy(),
     });

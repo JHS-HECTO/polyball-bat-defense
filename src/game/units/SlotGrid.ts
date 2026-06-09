@@ -1,26 +1,24 @@
-// 12 슬롯 위치 (경로/캐릭터 영역과 겹치지 않게 잔디 영역 분포)
-// S-커브 경로 (PATH_POINTS)는 메인 영역 중앙을 가로지름.
-// 슬롯은 경로 사이사이 잔디 빈 공간 + 하단 영역에 배치.
+// 12 슬롯: 직선 path (왼쪽 x=120 lane)의 오른쪽 영역에 3×4 그리드.
+// 슬롯 칸 크기 ~110×170. 슬롯 사거리가 path lane 까지 도달 가능 (좌측거리 90~170px).
 
 import type { Unit } from './Unit';
 
 export type SlotPosition = { index: number; x: number; y: number };
 
-// 화면 540×1170 기준, HUD 위 140 / 패널 아래 220 제외 → 가용 y 140~950
-// 12개 위치. 경로 회피.
 export const SLOT_POSITIONS: SlotPosition[] = [
-  { index: 0, x: 80, y: 250 },
-  { index: 1, x: 200, y: 200 },
-  { index: 2, x: 460, y: 200 },
-  { index: 3, x: 80, y: 380 },
-  { index: 4, x: 180, y: 380 },
-  { index: 5, x: 410, y: 410 },
-  { index: 6, x: 380, y: 520 },
-  { index: 7, x: 200, y: 580 },
-  { index: 8, x: 460, y: 620 },
-  { index: 9, x: 80, y: 700 },
-  { index: 10, x: 350, y: 720 },
-  { index: 11, x: 80, y: 850 },
+  // 3 col (x=230, 340, 450) × 4 row (y=230, 390, 560, 730)
+  { index: 0, x: 230, y: 230 },
+  { index: 1, x: 340, y: 230 },
+  { index: 2, x: 450, y: 230 },
+  { index: 3, x: 230, y: 390 },
+  { index: 4, x: 340, y: 390 },
+  { index: 5, x: 450, y: 390 },
+  { index: 6, x: 230, y: 560 },
+  { index: 7, x: 340, y: 560 },
+  { index: 8, x: 450, y: 560 },
+  { index: 9, x: 230, y: 730 },
+  { index: 10, x: 340, y: 730 },
+  { index: 11, x: 450, y: 730 },
 ];
 
 export class SlotGrid {
@@ -59,7 +57,7 @@ export class SlotGrid {
     return SLOT_POSITIONS.find((p) => p.index === slotIndex);
   }
 
-  findSlotAt(x: number, y: number, tolerance = 50): SlotPosition | null {
+  findSlotAt(x: number, y: number, tolerance = 60): SlotPosition | null {
     let best: SlotPosition | null = null;
     let bestDist = tolerance * tolerance;
     for (const p of SLOT_POSITIONS) {
