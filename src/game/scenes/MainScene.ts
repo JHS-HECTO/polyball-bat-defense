@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import {
+  EGG_POSITION,
   GAME_HEIGHT,
   GAME_WIDTH,
   PALETTE,
@@ -228,109 +229,145 @@ export class MainScene extends Phaser.Scene {
   }
 
   private drawPath(): void {
-    // 알키우기 톤: 직선 lane 박스 + 나무 plank 외곽선
+    // 가로 lane (좌→우) + 위/아래 나무 plank 외곽선 (알키우기)
     const head = PATH_POINTS[0]!;
     const tail = PATH_POINTS[PATH_POINTS.length - 1]!;
-    const cx = head.x;
-    const top = head.y - 30;
-    const bot = tail.y + 30;
-    const halfW = PATH_WIDTH / 2;
-    const planks = 8;
+    const cy = head.y;
+    const xLeft = head.x - 10;
+    const xRight = tail.x + 10;
+    const halfH = PATH_WIDTH / 2;
+    const planks = 10;
     // 그림자
     const sh = this.add.graphics();
     sh.setDepth(2);
-    sh.fillStyle(0x2c1d12, 0.18);
-    sh.fillRoundedRect(cx - halfW - 8, top - 4, halfW * 2 + 16, bot - top + 8, 4);
-    // path 본체 (밝은 흙)
+    sh.fillStyle(0x2c1d12, 0.2);
+    sh.fillRoundedRect(xLeft - 4, cy - halfH - 8, xRight - xLeft + 8, halfH * 2 + 16, 4);
+    // path 본체
     const lane = this.add.graphics();
     lane.setDepth(3);
     lane.fillStyle(PALETTE.path, 1);
-    lane.fillRect(cx - halfW, top, halfW * 2, bot - top);
+    lane.fillRect(xLeft, cy - halfH, xRight - xLeft, halfH * 2);
     // 어두운 점박이
     const speckle = this.add.graphics();
     speckle.setDepth(4);
-    speckle.fillStyle(PALETTE.pathDark, 0.5);
-    for (let i = 0; i < 60; i += 1) {
-      const x = cx + (Math.random() - 0.5) * (halfW * 1.8);
-      const y = top + Math.random() * (bot - top);
-      speckle.fillCircle(x, y, 1 + Math.random() * 1.4);
+    speckle.fillStyle(PALETTE.pathDark, 0.55);
+    for (let i = 0; i < 80; i += 1) {
+      const x = xLeft + Math.random() * (xRight - xLeft);
+      const y = cy + (Math.random() - 0.5) * halfH * 1.8;
+      speckle.fillCircle(x, y, 1 + Math.random() * 1.5);
     }
-    // 왼쪽 나무 plank 외곽선
-    const left = this.add.graphics();
-    left.setDepth(5);
-    const plankW = 10;
-    const plankH = (bot - top) / planks;
+    // 위쪽 나무 plank
+    const top = this.add.graphics();
+    top.setDepth(5);
+    const plankW = (xRight - xLeft) / planks;
+    const plankH = 12;
     for (let i = 0; i < planks; i += 1) {
-      const y = top + i * plankH;
-      left.fillStyle(0x8b5a2b, 1);
-      left.lineStyle(1.5, 0x4d2e10, 1);
-      left.fillRect(cx - halfW - plankW, y, plankW, plankH - 1);
-      left.strokeRect(cx - halfW - plankW, y, plankW, plankH - 1);
+      const x = xLeft + i * plankW;
+      top.fillStyle(0x8b5a2b, 1);
+      top.lineStyle(1.5, 0x4d2e10, 1);
+      top.fillRect(x + 1, cy - halfH - plankH, plankW - 2, plankH);
+      top.strokeRect(x + 1, cy - halfH - plankH, plankW - 2, plankH);
+      // 못 자국
+      top.fillStyle(0x4d2e10, 1);
+      top.fillCircle(x + 4, cy - halfH - plankH + 3, 1);
+      top.fillCircle(x + plankW - 4, cy - halfH - plankH + 3, 1);
     }
-    // 오른쪽 나무 plank 외곽선
-    const right = this.add.graphics();
-    right.setDepth(5);
+    // 아래쪽 나무 plank
+    const bot = this.add.graphics();
+    bot.setDepth(5);
     for (let i = 0; i < planks; i += 1) {
-      const y = top + i * plankH;
-      right.fillStyle(0x8b5a2b, 1);
-      right.lineStyle(1.5, 0x4d2e10, 1);
-      right.fillRect(cx + halfW, y, plankW, plankH - 1);
-      right.strokeRect(cx + halfW, y, plankW, plankH - 1);
+      const x = xLeft + i * plankW;
+      bot.fillStyle(0x8b5a2b, 1);
+      bot.lineStyle(1.5, 0x4d2e10, 1);
+      bot.fillRect(x + 1, cy + halfH, plankW - 2, plankH);
+      bot.strokeRect(x + 1, cy + halfH, plankW - 2, plankH);
+      bot.fillStyle(0x4d2e10, 1);
+      bot.fillCircle(x + 4, cy + halfH + 9, 1);
+      bot.fillCircle(x + plankW - 4, cy + halfH + 9, 1);
     }
   }
 
   private drawFlagAndCastle(): void {
-    const start = PATH_POINTS[0]!;
-    this.drawFlag(start.x, start.y - 14);
-    const end = PATH_POINTS[PATH_POINTS.length - 1]!;
-    this.drawCastle(end.x, end.y + 32);
+    // 시작 쪽 (왼쪽) 깃발 + 끝 쪽 (오른쪽) 알/성채
+    this.drawFlag(20, 520);
+    this.drawCastle(498, 520);
+    this.drawEgg(EGG_POSITION.x, EGG_POSITION.y - 8);
+  }
+
+  private drawEgg(x: number, y: number): void {
+    const g = this.add.graphics();
+    g.setDepth(8);
+    // 그림자
+    g.fillStyle(0x2c1d12, 0.32);
+    g.fillEllipse(x, y + 20, 36, 10);
+    // 알 본체 (타원, 빨간빛)
+    g.fillStyle(0xe25555, 1);
+    g.lineStyle(2, 0x6f2222, 1);
+    g.fillEllipse(x, y, 28, 36);
+    g.strokeEllipse(x, y, 28, 36);
+    // 하이라이트
+    g.fillStyle(0xff8c8c, 0.7);
+    g.fillEllipse(x - 5, y - 6, 10, 16);
+    // 점박이 패턴
+    g.fillStyle(0x6f2222, 0.7);
+    g.fillCircle(x - 3, y + 4, 2);
+    g.fillCircle(x + 4, y + 10, 1.5);
+    g.fillCircle(x + 2, y - 8, 1.5);
+    // 빛나는 글로우
+    g.lineStyle(2, 0xffd35e, 0.4);
+    g.strokeEllipse(x, y, 32, 40);
   }
 
   private drawFlag(x: number, y: number): void {
     const g = this.add.graphics();
     g.setDepth(8);
+    // 그림자
+    g.fillStyle(0x2c1d12, 0.3);
+    g.fillEllipse(x, y + 30, 28, 8);
+    // 깃대
     g.fillStyle(PALETTE.flagPole, 1);
-    g.fillRect(x - 2, y - 60, 4, 60);
-    g.fillStyle(PALETTE.flagCloth, 1);
-    g.fillTriangle(x + 2, y - 56, x + 34, y - 48, x + 2, y - 40);
-    const sh = this.add.image(x, y + 4, 'shadow');
-    sh.setAlpha(0.35);
-    sh.setDepth(7);
+    g.fillRect(x - 2, y - 30, 3, 60);
+    // 깃발 (검은색 = 적의 깃발)
+    g.fillStyle(0x2c1d12, 1);
+    g.lineStyle(1.5, 0x000000, 1);
+    g.fillTriangle(x + 1, y - 28, x + 22, y - 22, x + 1, y - 14);
+    g.strokeTriangle(x + 1, y - 28, x + 22, y - 22, x + 1, y - 14);
+    // 해골 마크
+    g.fillStyle(0xfffaf2, 1);
+    g.fillCircle(x + 8, y - 21, 3);
+    g.fillStyle(0x2c1d12, 1);
+    g.fillRect(x + 6, y - 22, 1, 1);
+    g.fillRect(x + 9, y - 22, 1, 1);
   }
 
   private drawCastle(x: number, y: number): void {
+    // 작은 성채 (오른쪽 끝)
     const g = this.add.graphics();
     g.setDepth(8);
+    // 그림자
     g.fillStyle(0x2c1d12, 0.25);
-    g.fillEllipse(x, y + 56, 130, 22);
+    g.fillEllipse(x, y + 30, 64, 14);
+    // 본체
     g.fillStyle(PALETTE.castleStone, 1);
-    g.lineStyle(3, PALETTE.castleStoneDark, 1);
-    g.fillRoundedRect(x - 56, y - 30, 112, 80, 6);
-    g.strokeRoundedRect(x - 56, y - 30, 112, 80, 6);
-    g.fillRoundedRect(x - 70, y - 50, 24, 100, 4);
-    g.strokeRoundedRect(x - 70, y - 50, 24, 100, 4);
-    g.fillRoundedRect(x + 46, y - 50, 24, 100, 4);
-    g.strokeRoundedRect(x + 46, y - 50, 24, 100, 4);
-    g.fillStyle(PALETTE.castleStone, 1);
-    for (let i = -3; i <= 3; i += 1) {
-      const cx = x + i * 14;
-      g.fillRect(cx - 4, y - 38, 8, 10);
-      g.lineStyle(2, PALETTE.castleStoneDark, 1);
-      g.strokeRect(cx - 4, y - 38, 8, 10);
+    g.lineStyle(2, PALETTE.castleStoneDark, 1);
+    g.fillRoundedRect(x - 24, y - 18, 48, 50, 4);
+    g.strokeRoundedRect(x - 24, y - 18, 48, 50, 4);
+    // 톱니
+    for (let i = -2; i <= 2; i += 1) {
+      const cx = x + i * 10;
+      g.fillRect(cx - 3, y - 24, 6, 8);
+      g.strokeRect(cx - 3, y - 24, 6, 8);
     }
-    g.fillStyle(PALETTE.castleRoof, 1);
-    g.lineStyle(2, 0x6f2222, 1);
-    g.fillTriangle(x - 72, y - 50, x - 44, y - 50, x - 58, y - 76);
-    g.strokeTriangle(x - 72, y - 50, x - 44, y - 50, x - 58, y - 76);
-    g.fillTriangle(x + 44, y - 50, x + 72, y - 50, x + 58, y - 76);
-    g.strokeTriangle(x + 44, y - 50, x + 72, y - 50, x + 58, y - 76);
+    // 입구
     g.fillStyle(0x6b4523, 1);
-    g.lineStyle(2, 0x3e2710, 1);
-    g.fillRoundedRect(x - 14, y + 12, 28, 38, { tl: 14, tr: 14, bl: 0, br: 0 });
-    g.strokeRoundedRect(x - 14, y + 12, 28, 38, { tl: 14, tr: 14, bl: 0, br: 0 });
+    g.lineStyle(1.5, 0x3e2710, 1);
+    g.fillRoundedRect(x - 6, y, 12, 18, { tl: 6, tr: 6, bl: 0, br: 0 });
+    g.strokeRoundedRect(x - 6, y, 12, 18, { tl: 6, tr: 6, bl: 0, br: 0 });
+    // 깃발
+    g.fillStyle(PALETTE.flagPole, 1);
+    g.fillRect(x - 1, y - 50, 2, 26);
     g.fillStyle(PALETTE.flagCloth, 1);
-    g.fillRect(x - 1, y - 96, 2, 22);
-    g.fillTriangle(x + 1, y - 96, x + 18, y - 90, x + 1, y - 84);
+    g.fillTriangle(x + 1, y - 50, x + 14, y - 44, x + 1, y - 38);
   }
 
   private drawTreesAndFlowers(): void {

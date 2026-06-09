@@ -1,24 +1,25 @@
-// 12 슬롯: 직선 path (왼쪽 x=120 lane)의 오른쪽 영역에 3×4 그리드.
-// 슬롯 칸 크기 ~110×170. 슬롯 사거리가 path lane 까지 도달 가능 (좌측거리 90~170px).
+// 12 슬롯 — 가로 path (y=520) 위/아래 잔디 영역에 분포.
+// 위: 3 cols × 2 rows = 6, 아래: 3 cols × 2 rows = 6.
 
 import type { Unit } from './Unit';
 
 export type SlotPosition = { index: number; x: number; y: number };
 
 export const SLOT_POSITIONS: SlotPosition[] = [
-  // 3 col (x=230, 340, 450) × 4 row (y=230, 390, 560, 730)
-  { index: 0, x: 230, y: 230 },
-  { index: 1, x: 340, y: 230 },
-  { index: 2, x: 450, y: 230 },
-  { index: 3, x: 230, y: 390 },
-  { index: 4, x: 340, y: 390 },
-  { index: 5, x: 450, y: 390 },
-  { index: 6, x: 230, y: 560 },
-  { index: 7, x: 340, y: 560 },
-  { index: 8, x: 450, y: 560 },
-  { index: 9, x: 230, y: 730 },
-  { index: 10, x: 340, y: 730 },
-  { index: 11, x: 450, y: 730 },
+  // 위쪽 (y=220, 360 / x=120, 270, 420)
+  { index: 0, x: 120, y: 220 },
+  { index: 1, x: 270, y: 220 },
+  { index: 2, x: 420, y: 360 },
+  { index: 3, x: 120, y: 360 },
+  { index: 4, x: 270, y: 360 },
+  { index: 5, x: 420, y: 220 },
+  // 아래쪽 (y=680, 820 / x=120, 270, 420)
+  { index: 6, x: 120, y: 680 },
+  { index: 7, x: 270, y: 680 },
+  { index: 8, x: 420, y: 680 },
+  { index: 9, x: 120, y: 820 },
+  { index: 10, x: 270, y: 820 },
+  { index: 11, x: 420, y: 820 },
 ];
 
 export class SlotGrid {

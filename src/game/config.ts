@@ -11,15 +11,19 @@ export const WORLD = {
   characterY: 605,
 } as const;
 
-// 직선 세로 path (왼쪽 lane). 알키우기 스타일.
-// 몹: 위에서 아래로 한 줄로 내려옴. 슬롯: 오른쪽 영역에 배치.
+// 가로 lane (좌→우). 알키우기 스타일 — 몹이 왼쪽에서 들어와 오른쪽 알/성채로.
+// 슬롯: lane 위/아래 잔디 영역에 분포.
 export const PATH_POINTS: ReadonlyArray<{ x: number; y: number }> = [
-  { x: 120, y: 150 },  // 시작 (깃발 — 상단)
-  { x: 120, y: 950 },  // 끝 (성채 — 하단)
+  { x: -30, y: 520 },  // 시작 (왼쪽 화면 밖)
+  { x: 570, y: 520 },  // 끝 (오른쪽 화면 밖 — 알/성채 도착)
 ];
 
-export const PATH_WIDTH = 76;
-export const PATH_EDGE_WIDTH = 86;
+export const PATH_WIDTH = 92;
+export const PATH_EDGE_WIDTH = 102;
+
+// 알/성채 디펜더 영역 좌표
+export const EGG_POSITION = { x: 470, y: 520 } as const;
+export const CASTLE_POSITION = { x: 520, y: 520 } as const;
 
 export const PALETTE = {
   surfaceBase: 0xfff7ea,
