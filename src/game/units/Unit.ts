@@ -116,24 +116,35 @@ export class Unit extends Phaser.GameObjects.Container {
     const g = this.frameG;
     g.clear();
     const c = TYPE_TO_FRAME_COLOR[this.unitType];
-    // 그라데이션 느낌 (3겹)
-    g.fillStyle(this.darken(c, 0.3), 1);
-    g.fillCircle(0, 0, 24);
+    const dark = this.darken(c, 0.5);
+    const mid = this.darken(c, 0.2);
+    const light = this.lighten(c, 0.35);
+    // 외곽 ring (다크)
+    g.fillStyle(dark, 1);
+    g.fillCircle(0, 2, 30);
+    // 메인 림 (mid)
+    g.fillStyle(mid, 1);
+    g.fillCircle(0, 0, 28);
+    // 내부 (base)
     g.fillStyle(c, 1);
-    g.fillCircle(0, -1, 22);
-    g.fillStyle(this.lighten(c, 0.25), 0.45);
-    g.fillCircle(-6, -7, 8);
+    g.fillCircle(0, -1, 25);
+    // 하이라이트 (좌상)
+    g.fillStyle(light, 0.45);
+    g.fillEllipse(-8, -10, 16, 12);
+    // 작은 빛점
+    g.fillStyle(0xffffff, 0.55);
+    g.fillCircle(-10, -12, 3);
     // 외곽선
-    g.lineStyle(2, this.darken(c, 0.5), 1);
-    g.strokeCircle(0, 0, 24);
+    g.lineStyle(2, dark, 1);
+    g.strokeCircle(0, 0, 28);
     // Lv 별 표시 (4+ tier)
     if (this.level >= 4) {
       const stars = Math.min(3, this.level - 3);
       for (let i = 0; i < stars; i += 1) {
         const a = -Math.PI / 2 + (i - (stars - 1) / 2) * 0.4;
-        const sx = Math.cos(a) * 18;
-        const sy = Math.sin(a) * 18;
-        this.drawStarShape(g, sx, sy, 3, 1.5, 0xffd35e);
+        const sx = Math.cos(a) * 22;
+        const sy = Math.sin(a) * 22;
+        this.drawStarShape(g, sx, sy, 4, 2, 0xffd35e);
       }
     }
   }

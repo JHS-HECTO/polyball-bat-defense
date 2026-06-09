@@ -521,14 +521,16 @@ export class MainScene extends Phaser.Scene {
     g.clear();
     const occupied = this.slotGrid.isOccupied(index);
     if (occupied) {
-      // 점유 슬롯 = 옅은 그림자만
-      g.fillStyle(0x2c1d12, 0.12);
-      g.fillCircle(0, 18, 22);
+      // 점유 슬롯 = 어두운 발판 그림자
+      g.fillStyle(0x2c1d12, 0.22);
+      g.fillEllipse(0, 26, 56, 16);
     } else {
-      // 빈 슬롯 = 점선 동그라미
-      g.lineStyle(2, highlight ? 0xffd35e : 0x2c1d12, highlight ? 0.65 : 0.32);
-      const radius = 26;
-      const segs = 18;
+      // 빈 슬롯 = 디스크형 그림자 + 점선 테두리
+      g.fillStyle(highlight ? 0xffd35e : 0x2c1d12, highlight ? 0.18 : 0.08);
+      g.fillCircle(0, 0, 30);
+      g.lineStyle(2, highlight ? 0xffd35e : 0xffffff, highlight ? 0.7 : 0.4);
+      const radius = 28;
+      const segs = 20;
       for (let i = 0; i < segs; i += 2) {
         const a1 = (Math.PI * 2 * i) / segs;
         const a2 = (Math.PI * 2 * (i + 1)) / segs;
@@ -536,10 +538,9 @@ export class MainScene extends Phaser.Scene {
         g.arc(0, 0, radius, a1, a2, false);
         g.strokePath();
       }
-      if (highlight) {
-        g.fillStyle(0xffd35e, 0.18);
-        g.fillCircle(0, 0, radius);
-      }
+      // 슬롯 인덱스 작은 점 (가운데)
+      g.fillStyle(highlight ? 0xffd35e : 0xffffff, highlight ? 0.55 : 0.25);
+      g.fillCircle(0, 0, 3);
     }
   }
 
