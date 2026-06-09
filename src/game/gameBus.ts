@@ -1,8 +1,4 @@
-// React ↔ Phaser 이벤트 버스
-// SSR 호환을 위해 Phaser 의존성 제거. 자체 EventEmitter.
-// 'state' 이벤트는 마지막 값을 캐싱 → 신규 구독자가 즉시 마지막 상태 수신.
-
-export type UpgradeKind = 'damage' | 'speed' | 'range' | 'bat';
+// React ↔ Phaser 이벤트 버스 (머지 TD)
 
 export type GameStatePayload = {
   hp: number;
@@ -13,17 +9,23 @@ export type GameStatePayload = {
   isBossStage: boolean;
   isGameOver: boolean;
   mobsRemaining: number;
-  damageTier: number;
-  speedTier: number;
-  rangeTier: number;
-  batTier: number;
-  damageCost: number | null;
-  speedCost: number | null;
-  rangeCost: number | null;
-  batCost: number | null;
+  unitsPlaced: number;
+  unitsMax: number;
+  buyCost: number;
+  buyAffordable: boolean;
+  fieldFull: boolean;
+  selectedUnitId: number | null;
+  selectedUnitInfo: SelectedUnitInfo | null;
+};
+
+export type SelectedUnitInfo = {
+  id: number;
+  type: 'melee' | 'ranged' | 'magic' | 'bomb';
+  level: number;
   damage: number;
-  attackCooldown: number;
   range: number;
+  cooldown: number;
+  sellRefund: number;
 };
 
 export type BossKilledPayload = {
@@ -40,16 +42,16 @@ export type ToastPayload = {
 export const BUS_EVENTS = {
   state: 'state',
   bossKilled: 'bossKilled',
-  upgradeRequest: 'upgradeRequest',
+  buyRequest: 'buyRequest',
+  sellRequest: 'sellRequest',
   restart: 'restart',
   toast: 'toast',
+  unitSelected: 'unitSelected',
+  unitDeselected: 'unitDeselected',
 } as const;
 
-// 캐시 대상 이벤트 (신규 구독자에게 replay)
 const REPLAY_EVENTS = new Set<string>([BUS_EVENTS.state]);
 
-// 핸들러를 unknown으로 들고 다니다 호출 시점에 그대로 패스. 콜백 측에서 타입 좁힘.
-// on/off는 generic으로 받아 호출자에게 자연스러운 타입 추론 제공.
 type AnyHandler = (payload: never) => void;
 
 class Emitter {

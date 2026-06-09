@@ -18,8 +18,10 @@ export const GameOverModal = () => {
           <dd>{state.score.toLocaleString()}</dd>
           <dt>도달 스테이지</dt>
           <dd>{state.stage}</dd>
-          <dt>빠따 티어</dt>
-          <dd>{state.batTier}</dd>
+          <dt>유닛 수</dt>
+          <dd>
+            {state.unitsPlaced} / {state.unitsMax}
+          </dd>
         </dl>
         <button
           type="button"

@@ -1,47 +1,82 @@
 'use client';
 
-import type { GameStatePayload } from 'game/gameBus';
+import type { GameStatePayload, SelectedUnitInfo } from 'game/gameBus';
 import { GameStateProvider } from 'lib/GameStateContext';
+import { BuyPanel } from './BuyPanel';
 import { GameOverModal } from './GameOverModal';
 import { Hud } from './Hud';
-import { UpgradePanel } from './UpgradePanel';
 import styles from './QaGallery.module.scss';
+
+const sel = (
+  type: 'melee' | 'ranged' | 'magic' | 'bomb',
+  level: number,
+  damage: number,
+  range: number,
+): SelectedUnitInfo => ({
+  id: 1,
+  type,
+  level,
+  damage,
+  range,
+  cooldown: 700,
+  sellRefund: 30,
+});
 
 const SCENARIOS: Array<{ title: string; state: GameStatePayload; modal?: boolean }> = [
   {
-    title: '신규 게임 시작 (스테이지 1, 골드 0)',
-    state: makeState({ stage: 1, gold: 0, score: 0, hp: 10 }),
+    title: '신규 시작 (스테이지 1, 100G)',
+    state: makeState({ stage: 1, gold: 100, score: 0, hp: 10, unitsPlaced: 1, buyCost: 30, buyAffordable: true }),
   },
   {
-    title: '중반 (스테이지 5, 골드 풍족, Lv 진행)',
+    title: '중반 (스테이지 5, 슬롯 7/12)',
     state: makeState({
       stage: 5,
-      gold: 850,
+      gold: 240,
       score: 7600,
       hp: 8,
-      damageTier: 3,
-      speedTier: 2,
-      rangeTier: 1,
-      batTier: 1,
+      unitsPlaced: 7,
+      buyCost: 142,
+      buyAffordable: true,
     }),
   },
   {
-    title: '보스 스테이지 (10, BOSS 배지)',
+    title: '유닛 선택 (활 Lv3)',
+    state: makeState({
+      stage: 4,
+      gold: 88,
+      score: 4200,
+      hp: 9,
+      unitsPlaced: 5,
+      buyCost: 102,
+      buyAffordable: false,
+      selectedUnitId: 42,
+      selectedUnitInfo: sel('ranged', 3, 16, 296),
+    }),
+  },
+  {
+    title: '보스 스테이지 (10, BOSS)',
     state: makeState({
       stage: 10,
-      gold: 240,
+      gold: 320,
       score: 18500,
       hp: 5,
-      damageTier: 5,
-      speedTier: 4,
-      rangeTier: 3,
-      batTier: 2,
+      unitsPlaced: 9,
+      buyCost: 230,
+      buyAffordable: true,
       isBossStage: true,
     }),
   },
   {
-    title: '저체력 위기 (HP 1)',
-    state: makeState({ stage: 7, gold: 60, score: 12000, hp: 1, damageTier: 2 }),
+    title: '필드 풀',
+    state: makeState({
+      stage: 14,
+      gold: 580,
+      score: 28000,
+      hp: 7,
+      unitsPlaced: 12,
+      buyCost: 330,
+      fieldFull: true,
+    }),
   },
   {
     title: '게임 오버',
@@ -50,26 +85,11 @@ const SCENARIOS: Array<{ title: string; state: GameStatePayload; modal?: boolean
       gold: 480,
       score: 41200,
       hp: 0,
-      damageTier: 6,
-      speedTier: 4,
-      rangeTier: 3,
-      batTier: 3,
       isGameOver: true,
+      unitsPlaced: 10,
+      buyCost: 280,
     }),
     modal: true,
-  },
-  {
-    title: '엔드게임 (모든 업그레이드 만렙)',
-    state: makeState({
-      stage: 28,
-      gold: 99999,
-      score: 980000,
-      hp: 10,
-      damageTier: 10,
-      speedTier: 10,
-      rangeTier: 10,
-      batTier: 8,
-    }),
   },
 ];
 
@@ -83,17 +103,13 @@ function makeState(partial: Partial<GameStatePayload>): GameStatePayload {
     isBossStage: false,
     isGameOver: false,
     mobsRemaining: 0,
-    damageTier: 0,
-    speedTier: 0,
-    rangeTier: 0,
-    batTier: 0,
-    damageCost: 10,
-    speedCost: 12,
-    rangeCost: 15,
-    batCost: 200,
-    damage: 10,
-    attackCooldown: 700,
-    range: 140,
+    unitsPlaced: 0,
+    unitsMax: 12,
+    buyCost: 30,
+    buyAffordable: true,
+    fieldFull: false,
+    selectedUnitId: null,
+    selectedUnitInfo: null,
   };
   return { ...base, ...partial };
 }
@@ -104,7 +120,7 @@ export const QaGallery = () => {
       <div className={styles.intro}>
         <h1 className={styles.title}>빠따 디펜스 — QA 갤러리</h1>
         <p className={styles.subtitle}>
-          모든 UI 상태를 한 페이지로. 컴포넌트 단위 시각 검수용. 실제 게임 캔버스는 빠짐.
+          머지 TD UI 상태 정적 렌더. 게임 캔버스 없음.
         </p>
       </div>
       <div className={styles.grid}>
@@ -118,7 +134,7 @@ export const QaGallery = () => {
               <GameStateProvider value={sc.state}>
                 <div className={styles.miniBg} />
                 <Hud />
-                <UpgradePanel />
+                <BuyPanel />
                 {sc.modal ? <GameOverModal /> : null}
               </GameStateProvider>
             </div>

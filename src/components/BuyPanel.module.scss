@@ -1,0 +1,139 @@
+.panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--z-hud);
+  padding: 1rem 1.2rem 1.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.hint {
+  font-size: 1.1rem;
+  color: var(--colors-text-secondary);
+  text-align: center;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 0.8rem;
+}
+
+.buy {
+  display: grid;
+  grid-template-areas:
+    'main main'
+    'cost slots';
+  gap: 0.2rem;
+  padding: 1rem 1.2rem;
+  background: var(--colors-primary1);
+  color: var(--colors-text-primary);
+  border: 0.2rem solid var(--colors-primary3);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-2);
+  cursor: pointer;
+  font-family: inherit;
+  transition: transform 0.1s var(--ease-out-soft);
+
+  &:active {
+    transform: scale(0.97);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    background: var(--colors-surface-panel);
+    color: var(--colors-text-secondary);
+  }
+}
+
+.affordable {
+  background: linear-gradient(180deg, #ffd35e 0%, #ffb347 100%);
+}
+
+.buyMain {
+  grid-area: main;
+  font-size: 1.6rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.buyCost {
+  grid-area: cost;
+  font-size: 1.3rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.slotCount {
+  grid-area: slots;
+  text-align: right;
+  font-size: 1.1rem;
+  color: var(--colors-text-secondary);
+}
+
+.selected {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto auto auto;
+  gap: 0.2rem 0.6rem;
+  padding: 0.8rem 1rem;
+  background: var(--colors-surface-card);
+  border: 0.2rem solid var(--colors-stroke-soft);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-1);
+}
+
+.selTitle {
+  grid-column: 1 / -1;
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--colors-text-primary);
+}
+
+.selLv {
+  background: var(--colors-text-primary);
+  color: var(--colors-text-inverse);
+  padding: 0.1rem 0.5rem;
+  border-radius: var(--radius-pill);
+  font-size: 1.1rem;
+  margin-left: 0.4rem;
+}
+
+.selStat {
+  font-size: 1.1rem;
+  color: var(--colors-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.sell {
+  grid-column: 1 / -1;
+  padding: 0.5rem;
+  background: var(--colors-warning);
+  border: 0;
+  border-radius: var(--radius-sm);
+  font-weight: 800;
+  font-size: 1.2rem;
+  color: var(--colors-text-primary);
+  cursor: pointer;
+  transition: transform 0.1s var(--ease-out-soft);
+
+  &:active {
+    transform: scale(0.96);
+  }
+}
+
+.selectedEmpty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0.8rem;
+  background: var(--colors-surface-panel);
+  border-radius: var(--radius-md);
+  font-size: 1.2rem;
+  color: var(--colors-text-secondary);
+}

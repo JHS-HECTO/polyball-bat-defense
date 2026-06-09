@@ -4,10 +4,10 @@ import dynamic from 'next/dynamic';
 import { useBossReward } from 'lib/useBossReward';
 import { useDailyResetSync } from 'lib/useDailyResetSync';
 import { usePolyballBridge } from 'lib/usePolyballBridge';
+import { BuyPanel } from './BuyPanel';
 import { GameOverModal } from './GameOverModal';
 import { Hud } from './Hud';
 import { ToastStack } from './ToastStack';
-import { UpgradePanel } from './UpgradePanel';
 import styles from './AppShell.module.scss';
 
 const PhaserCanvas = dynamic(
@@ -27,7 +27,7 @@ export const AppShell = ({ children }: Props) => {
       <div className={styles.appFrame}>
         <PhaserCanvas />
         <Hud />
-        <UpgradePanel />
+        <BuyPanel />
         <ToastStack />
         <GameOverModal />
         {children}
