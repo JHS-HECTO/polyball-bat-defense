@@ -11,12 +11,16 @@ const TYPE_TO_WEAPON: Record<UnitType, string> = {
   bomb: 'emoji-bomb',
 };
 
+// Stable Horde 생성 일러스트 (4종) — 누끼 처리됨, 무기 일체형이므로 weapon img 제거 가능
 const TYPE_TO_CHARACTER: Record<UnitType, string> = {
-  melee: 'emoji-boy',       // 👦 빠따 든 소년
-  ranged: 'emoji-elf',      // 🧝 엘프 (활)
-  magic: 'emoji-knight',    // 🧙 마법사
-  bomb: 'emoji-ninja',      // 🥷 닌자 (폭탄)
+  melee: 'sprite-char-melee',
+  ranged: 'sprite-char-ranged',
+  magic: 'sprite-char-magic',
+  bomb: 'sprite-char-bomb',
 };
+
+// 일러스트 자체에 무기가 그려져있으므로 추가 무기 표시 안함
+const USE_BUILTIN_WEAPON = true;
 
 const TYPE_TO_FRAME_COLOR: Record<UnitType, number> = {
   melee: 0x4b8de8,
@@ -68,15 +72,17 @@ export class Unit extends Phaser.GameObjects.Container {
     this.add(this.frameG);
     this.drawFrame();
 
-    // 타입별 캐릭터 이모지
-    this.boyImg = scene.add.image(-3, -4, TYPE_TO_CHARACTER[type]);
-    this.boyImg.setDisplaySize(44, 44);
+    // 캐릭터 일러스트 (Horde 생성, 무기 일체형)
+    this.boyImg = scene.add.image(0, -8, TYPE_TO_CHARACTER[type]);
+    this.boyImg.setDisplaySize(64, 64);
     this.add(this.boyImg);
 
-    // 타입별 무기 이모지
+    // 무기 이미지 (휘두름 모션용 — 일러스트에 무기 있어도 동작감 위해 별도)
     this.weaponImg = scene.add.image(14, -4, TYPE_TO_WEAPON[type]);
-    this.weaponImg.setDisplaySize(28, 28);
+    this.weaponImg.setDisplaySize(20, 20);
     this.weaponImg.setOrigin(0.3, 0.7);
+    this.weaponImg.setVisible(false); // 일러스트 무기로 대체 (필요 시 visible=true)
+    if (!USE_BUILTIN_WEAPON) this.weaponImg.setVisible(true);
     this.add(this.weaponImg);
 
     // Lv 태그
@@ -92,8 +98,8 @@ export class Unit extends Phaser.GameObjects.Container {
     this.add(this.levelTag);
 
     // 큰 hit 영역 (터치 드래그 편함)
-    this.setSize(72, 80);
-    this.setInteractive(new Phaser.Geom.Rectangle(-36, -48, 72, 80), Phaser.Geom.Rectangle.Contains);
+    this.setSize(80, 96);
+    this.setInteractive(new Phaser.Geom.Rectangle(-40, -56, 80, 96), Phaser.Geom.Rectangle.Contains);
     scene.input.setDraggable(this);
 
     scene.add.existing(this);
@@ -199,24 +205,17 @@ export class Unit extends Phaser.GameObjects.Container {
     if (this.swingAnimMs > 0) this.swingAnimMs -= deltaMs;
     if (this.cooldownLeft > 0) this.cooldownLeft -= deltaMs;
 
-    // Idle bob
+    // Idle bob + 공격 시 살짝 lunge
     const bob = Math.sin(this.idleTimeline * 0.005) * 1.5;
-    this.boyImg.y = -4 + bob;
-
-    // Weapon swing — 타겟 방향으로 휘두름
+    let lungeX = 0;
+    let lungeY = 0;
     if (this.swingAnimMs > 0) {
-      const t = 1 - this.swingAnimMs / 220; // 0→1
-      const baseAng = this.targetAngle;
-      const arc = (t - 0.5) * 1.6;
-      const reach = Math.min(this.targetDist - 8, 100);
-      const dist = 14 + Math.sin(t * Math.PI) * (reach - 14);
-      this.weaponImg.x = Math.cos(baseAng + arc) * dist;
-      this.weaponImg.y = Math.sin(baseAng + arc) * dist - 4 + bob;
-      this.weaponImg.rotation = baseAng + arc + Math.PI / 4;
-    } else {
-      this.weaponImg.x = 14;
-      this.weaponImg.y = -4 + bob;
-      this.weaponImg.rotation = 0;
+      const t = 1 - this.swingAnimMs / 220;
+      const lungeAmount = Math.sin(t * Math.PI) * 6;
+      lungeX = Math.cos(this.targetAngle) * lungeAmount;
+      lungeY = Math.sin(this.targetAngle) * lungeAmount;
     }
+    this.boyImg.x = lungeX;
+    this.boyImg.y = -8 + bob + lungeY;
   }
 }

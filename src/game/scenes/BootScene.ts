@@ -7,17 +7,21 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload(): void {
-    // Twemoji 스프라이트 (Twitter CC-BY 4.0)
+    // Twemoji 폴백
     const emojis = [
-      'bat', 'bow', 'crystal', 'bomb',          // 유닛
-      'skull', 'ogre', 'slime', 'ghost', 'batmob', // 일반 몹
-      'dragon',                                  // 보스
-      'egg', 'castle', 'flag', 'coin',          // 환경/UI
-      'boy', 'knight',                          // 캐릭터 베이스
+      'bat', 'bow', 'crystal', 'bomb',
+      'skull', 'ogre', 'slime', 'ghost', 'batmob',
+      'dragon', 'egg', 'castle', 'flag', 'coin',
+      'boy', 'knight', 'elf', 'ninja',
     ];
     for (const e of emojis) {
       this.load.image(`emoji-${e}`, `/images/emoji/${e}.png`);
     }
+    // Stable Horde 생성 캐릭터 (4종, 누끼 처리됨)
+    this.load.image('sprite-char-melee', '/images/sprites_nobg/10_char_melee.png');
+    this.load.image('sprite-char-ranged', '/images/sprites_nobg/13_char_ranged.png');
+    this.load.image('sprite-char-magic', '/images/sprites_nobg/14_char_magic.png');
+    this.load.image('sprite-char-bomb', '/images/sprites_nobg/15_char_bomb.png');
   }
 
   create(): void {
