@@ -1,0 +1,61 @@
+// Semantic design tokens for 빠따 디펜스
+// Tone: Animal Crossing / 알키우기 cartoon. Soft warm palette.
+
+:root {
+  // Primary palette — warm clay/cream
+  --colors-primary1: #ffb347;   // warm orange (CTA, accents)
+  --colors-primary2: #ff8c42;   // deeper orange
+  --colors-primary3: #d96a2c;   // burnt sienna (pressed state)
+
+  // Surface
+  --colors-surface-base: #fff7ea;     // cream background
+  --colors-surface-card: #ffffff;     // card / panel
+  --colors-surface-panel: #fceedb;    // sub panel
+  --colors-surface-overlay: rgba(34, 24, 16, 0.55);
+
+  // Text
+  --colors-text-primary: #2c1d12;     // espresso
+  --colors-text-secondary: #5d4632;
+  --colors-text-muted: #8a7563;
+  --colors-text-inverse: #fffaf2;
+
+  // Stroke
+  --colors-stroke-soft: rgba(44, 29, 18, 0.12);
+  --colors-stroke-strong: rgba(44, 29, 18, 0.28);
+
+  // Status
+  --colors-success: #5bb95b;
+  --colors-warning: #f4b840;
+  --colors-danger: #e25555;
+  --colors-info: #4aa3df;
+
+  // Gameplay-specific
+  --colors-hp: #e25555;
+  --colors-hp-bg: #5a2424;
+  --colors-gold: #f6c531;
+  --colors-ticket: #ffd166;
+  --colors-boss: #8e3e3e;
+  --colors-grass: #87b04a;
+  --colors-path: #c89968;
+
+  // Elevation
+  --shadow-1: 0 0.2rem 0.6rem rgba(44, 29, 18, 0.12);
+  --shadow-2: 0 0.4rem 1.2rem rgba(44, 29, 18, 0.18);
+  --shadow-3: 0 0.8rem 2.4rem rgba(44, 29, 18, 0.24);
+
+  // Radius
+  --radius-sm: 0.6rem;
+  --radius-md: 1.2rem;
+  --radius-lg: 2rem;
+  --radius-pill: 999rem;
+
+  // Z layers
+  --z-game: 10;
+  --z-hud: 20;
+  --z-modal: 50;
+  --z-toast: 60;
+
+  // Motion
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out-soft: cubic-bezier(0.65, 0, 0.35, 1);
+}
