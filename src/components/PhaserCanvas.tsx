@@ -17,6 +17,7 @@ export const PhaserCanvas = () => {
       const { createGame } = await import('game/createGame');
       if (cancelled) return;
       gameRef.current = createGame(parent);
+      (window as unknown as { __game?: unknown }).__game = gameRef.current;
     })();
 
     return () => {

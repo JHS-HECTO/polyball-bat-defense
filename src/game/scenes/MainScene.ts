@@ -67,8 +67,12 @@ export class MainScene extends Phaser.Scene {
   private selectedUnit: Unit | null = null;
   private draggingUnit: Unit | null = null;
   private dragOriginSlot: SlotPosition | null = null;
+  private floatingUnit: Unit | null = null;
+  private floatingPulseTween: Phaser.Tweens.Tween | null = null;
   private isGameOver: boolean = false;
   private isInterStage: boolean = false;
+
+  private static SPAWN_POINT = { x: 270, y: 880 };
 
   private onBuyRequest = () => this.tryBuy();
   private onSellRequest = () => this.trySell();
@@ -98,13 +102,11 @@ export class MainScene extends Phaser.Scene {
       gameBus.off(BUS_EVENTS.restart, this.onRestart);
     });
 
-    // 시작 유닛 1마리 무료 배치 (게임 시작 가능하게)
-    const firstSlot = this.slotGrid.randomEmptySlot();
-    if (firstSlot) {
-      const unit = new Unit(this, firstSlot.x, firstSlot.y, 'melee', 1, firstSlot.index);
-      unit.setDepth(12);
-      this.slotGrid.place(unit, firstSlot);
-    }
+    // 시작 유닛 1마리 자동 배치 (드래그 안하고도 1스테이지 시작 가능)
+    this.placeStarterUnit();
+
+    // 스폰 스테이지 영역 표시 (BUY 시 유닛이 등장하는 위치 안내)
+    this.drawSpawnPad();
 
     this.startStage(1);
     this.publishState();
@@ -152,6 +154,8 @@ export class MainScene extends Phaser.Scene {
         }
       }
     }
+    // floating 유닛: 배치 전이라 공격 X, 애니메이션만
+    if (this.floatingUnit) this.floatingUnit.tickAnim(delta);
 
     // 발사체 업데이트
     for (let i = this.projectiles.length - 1; i >= 0; i -= 1) {
@@ -479,42 +483,61 @@ export class MainScene extends Phaser.Scene {
       (_pointer: Phaser.Input.Pointer, obj: Phaser.GameObjects.GameObject) => {
         if (!(obj instanceof Unit)) return;
         const unit = obj;
-        obj.setDepth(12);
+        const wasFloating = unit.slotIndex < 0;
+        obj.setDepth(wasFloating ? 22 : 12);
         obj.setHovered(false);
 
         const target = this.slotGrid.findSlotAt(unit.x, unit.y, 60);
         const origin = this.dragOriginSlot;
         this.draggingUnit = null;
         this.dragOriginSlot = null;
-        this.refreshSlotMarkers(false);
+        this.refreshSlotMarkers(this.floatingUnit !== null);
 
-        if (!target || !origin) {
-          if (origin) {
+        // 슬롯 외부 드롭
+        if (!target) {
+          if (wasFloating) {
+            this.snapFloatingBack(unit);
+          } else if (origin) {
             this.slotGrid.place(unit, origin);
           }
           return;
         }
-        if (target.index === origin.index) {
+        // 자기 슬롯으로 돌아옴
+        if (!wasFloating && origin && target.index === origin.index) {
           this.slotGrid.place(unit, origin);
           return;
         }
+
         const other = this.slotGrid.getAt(target.index);
         if (other) {
           if (other.level === unit.level && unit.level < MAX_LEVEL) {
-            // 머지!
+            if (wasFloating) {
+              this.stopFloatingPulse();
+              this.floatingUnit = null;
+            }
             this.merge(unit, other);
           } else if (other.level === unit.level && unit.level >= MAX_LEVEL) {
             this.toast('이미 최대 Lv', 'warn', 800);
-            this.slotGrid.place(unit, origin);
+            if (wasFloating) this.snapFloatingBack(unit);
+            else if (origin) this.slotGrid.place(unit, origin);
           } else {
             this.toast('같은 Lv만 합성', 'warn', 800);
-            this.slotGrid.place(unit, origin);
+            if (wasFloating) this.snapFloatingBack(unit);
+            else if (origin) this.slotGrid.place(unit, origin);
           }
         } else {
-          // 빈 슬롯으로 이동
-          this.slotGrid.remove(unit);
-          this.slotGrid.place(unit, target);
-          this.refreshSlotMarkers(false);
+          // 빈 슬롯
+          if (wasFloating) {
+            this.stopFloatingPulse();
+            unit.setScale(1);
+            this.floatingUnit = null;
+            this.slotGrid.place(unit, target);
+            this.refreshSlotMarkers(false);
+          } else {
+            this.slotGrid.remove(unit);
+            this.slotGrid.place(unit, target);
+            this.refreshSlotMarkers(false);
+          }
         }
         this.publishState();
       },
@@ -527,21 +550,32 @@ export class MainScene extends Phaser.Scene {
     this.input.on(Phaser.Input.Events.GAMEOBJECT_OUT, (_p: Phaser.Input.Pointer, obj: Phaser.GameObjects.GameObject) => {
       if (obj instanceof Unit && this.draggingUnit !== obj) obj.setHovered(false);
     });
-    // 유닛 클릭 = 선택 (Sell 대상)
+    // 유닛 클릭 = 선택 (Sell 대상). 단 floating 유닛은 선택 X.
     this.input.on(Phaser.Input.Events.GAMEOBJECT_DOWN, (_p: Phaser.Input.Pointer, obj: Phaser.GameObjects.GameObject) => {
-      if (obj instanceof Unit) this.selectUnit(obj);
+      if (obj instanceof Unit && obj.slotIndex >= 0) this.selectUnit(obj);
     });
+  }
+
+  private snapFloatingBack(unit: Unit): void {
+    const sp = MainScene.SPAWN_POINT;
+    unit.setPosition(sp.x, sp.y);
   }
 
   private merge(a: Unit, b: Unit): void {
     if (a.level !== b.level) return;
     const newLevel = (a.level + 1) as UnitLevel;
     const newType = randomType();
-    const slot = this.slotGrid.positionOf(b.slotIndex);
+    // 슬롯 = 비-floating 쪽 (b 우선, 둘 다 슬롯이면 b, a floating이면 b로)
+    const targetSlotIndex = b.slotIndex >= 0 ? b.slotIndex : a.slotIndex;
+    const slot = this.slotGrid.positionOf(targetSlotIndex);
     if (!slot) return;
-    // 두 유닛 제거
-    this.slotGrid.remove(a);
-    this.slotGrid.remove(b);
+    // 양쪽 제거 (slotGrid에 든 것만 remove)
+    if (a.slotIndex >= 0) this.slotGrid.remove(a);
+    if (b.slotIndex >= 0) this.slotGrid.remove(b);
+    if (a.slotIndex < 0 || b.slotIndex < 0) {
+      this.stopFloatingPulse();
+      this.floatingUnit = null;
+    }
     if (this.selectedUnit === a || this.selectedUnit === b) this.selectedUnit = null;
     a.destroy();
     b.destroy();
@@ -583,26 +617,78 @@ export class MainScene extends Phaser.Scene {
 
   private tryBuy(): void {
     if (this.isGameOver) return;
+    if (this.floatingUnit) {
+      this.toast('이전 유닛 먼저 배치', 'warn', 800);
+      return;
+    }
+    if (this.slotGrid.isFull()) {
+      this.toast('빈 슬롯 없음', 'warn', 700);
+      return;
+    }
     const cost = buyCost(this.purchases);
     if (this.gold < cost) {
       this.toast('골드 부족', 'warn', 700);
       return;
     }
-    const slot = this.slotGrid.randomEmptySlot();
-    if (!slot) {
-      this.toast('빈 슬롯 없음', 'warn', 700);
-      return;
-    }
     this.gold -= cost;
     this.purchases += 1;
     const type = randomType();
-    const unit = new Unit(this, slot.x, slot.y, type, 1, slot.index);
-    unit.setDepth(12);
-    this.slotGrid.place(unit, slot);
-    this.refreshSlotMarkers(false);
-    this.toast(`Lv1 ${unit.profile.label}`, 'info', 700);
-    this.spawnGoldOrb(slot.x, slot.y, 0); // visual placeholder skipped (amount=0 — could improve)
+    const sp = MainScene.SPAWN_POINT;
+    const unit = new Unit(this, sp.x, sp.y, type, 1, -1);
+    unit.setDepth(22);
+    this.floatingUnit = unit;
+    this.startFloatingPulse(unit);
+    this.refreshSlotMarkers(true);
+    this.toast(`${unit.profile.label} Lv1 — 슬롯으로 드래그`, 'info', 1400);
     this.publishState();
+  }
+
+  private startFloatingPulse(unit: Unit): void {
+    this.floatingPulseTween?.stop();
+    this.floatingPulseTween = this.tweens.add({
+      targets: unit,
+      scale: 1.08,
+      duration: 360,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
+  }
+
+  private stopFloatingPulse(): void {
+    this.floatingPulseTween?.stop();
+    this.floatingPulseTween = null;
+  }
+
+  private placeStarterUnit(): void {
+    const slot = this.slotGrid.randomEmptySlot();
+    if (!slot) return;
+    const u = new Unit(this, slot.x, slot.y, 'melee', 1, slot.index);
+    u.setDepth(12);
+    this.slotGrid.place(u, slot);
+  }
+
+  private drawSpawnPad(): void {
+    const g = this.add.graphics();
+    g.setDepth(7);
+    const sp = MainScene.SPAWN_POINT;
+    // 동그란 패드 (어디서 유닛 나오는지 시각 안내)
+    g.fillStyle(0x2c1d12, 0.18);
+    g.fillEllipse(sp.x, sp.y + 8, 90, 26);
+    g.lineStyle(2, PALETTE.primary3, 0.45);
+    g.strokeEllipse(sp.x, sp.y + 8, 90, 26);
+    g.fillStyle(PALETTE.primary1, 0.18);
+    g.fillCircle(sp.x, sp.y, 36);
+    g.lineStyle(2, PALETTE.primary1, 0.5);
+    g.strokeCircle(sp.x, sp.y, 36);
+    // 라벨
+    const t = this.add.text(sp.x, sp.y + 32, '유닛 등장 ↑', {
+      fontFamily: 'Pretendard, system-ui, sans-serif',
+      fontSize: '10px',
+      color: '#5d4632',
+    });
+    t.setOrigin(0.5);
+    t.setDepth(7);
   }
 
   private trySell(): void {
@@ -946,6 +1032,12 @@ export class MainScene extends Phaser.Scene {
     this.stage = 1;
     this.purchases = 0;
     this.selectedUnit = null;
+    // floating 정리
+    this.stopFloatingPulse();
+    if (this.floatingUnit) {
+      this.floatingUnit.destroy();
+      this.floatingUnit = null;
+    }
     // 모든 유닛 제거
     for (const u of this.slotGrid.allUnits()) u.destroy();
     this.slotGrid.reset();
@@ -953,12 +1045,7 @@ export class MainScene extends Phaser.Scene {
     for (const p of this.projectiles) p.g.destroy();
     this.projectiles = [];
     // 시작 유닛 다시
-    const firstSlot = this.slotGrid.randomEmptySlot();
-    if (firstSlot) {
-      const u = new Unit(this, firstSlot.x, firstSlot.y, 'melee', 1, firstSlot.index);
-      u.setDepth(12);
-      this.slotGrid.place(u, firstSlot);
-    }
+    this.placeStarterUnit();
     this.refreshSlotMarkers(false);
     this.startStage(1);
   }
@@ -995,7 +1082,7 @@ export class MainScene extends Phaser.Scene {
       unitsPlaced: this.slotGrid.count(),
       unitsMax: SLOT_POSITIONS.length,
       buyCost: buyCostNow,
-      buyAffordable: this.gold >= buyCostNow,
+      buyAffordable: this.gold >= buyCostNow && this.floatingUnit === null,
       fieldFull: this.slotGrid.isFull(),
       selectedUnitId: selectedInfo?.id ?? null,
       selectedUnitInfo: selectedInfo,
