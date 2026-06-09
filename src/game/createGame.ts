@@ -2,7 +2,6 @@ import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH, PALETTE } from './config';
 import { BootScene } from './scenes/BootScene';
 import { MainScene } from './scenes/MainScene';
-import { PreloadScene } from './scenes/PreloadScene';
 
 export const createGame = (parent: HTMLElement): Phaser.Game => {
   const config: Phaser.Types.Core.GameConfig = {
@@ -17,26 +16,18 @@ export const createGame = (parent: HTMLElement): Phaser.Game => {
     },
     physics: {
       default: 'arcade',
-      arcade: {
-        gravity: { x: 0, y: 0 },
-        debug: false,
-      },
+      arcade: { gravity: { x: 0, y: 0 }, debug: false },
     },
-    fps: {
-      target: 60,
-      forceSetTimeOut: false,
-    },
+    fps: { target: 60, forceSetTimeOut: true },
     render: {
       antialias: true,
       pixelArt: false,
       roundPixels: false,
+      preserveDrawingBuffer: true,
     },
-    input: {
-      activePointers: 2,
-    },
-    scene: [BootScene, PreloadScene, MainScene],
+    input: { activePointers: 2 },
+    scene: [BootScene, MainScene],
     audio: { disableWebAudio: false, noAudio: false },
   };
-
   return new Phaser.Game(config);
 };

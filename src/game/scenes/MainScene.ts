@@ -1,5 +1,16 @@
 import Phaser from 'phaser';
-import { GAME_HEIGHT, GAME_WIDTH, PALETTE, STAGE, STATS, SCORE, WORLD } from '../config';
+import {
+  GAME_HEIGHT,
+  GAME_WIDTH,
+  PALETTE,
+  PATH_EDGE_WIDTH,
+  PATH_POINTS,
+  PATH_WIDTH,
+  SCORE,
+  STAGE,
+  STATS,
+  WORLD,
+} from '../config';
 import { Character } from '../entities/Character';
 import { Mob } from '../entities/Mob';
 import { gameBus, BUS_EVENTS, type UpgradeKind } from '../gameBus';
@@ -20,8 +31,9 @@ export class MainScene extends Phaser.Scene {
   private character!: Character;
   private mobs: Mob[] = [];
   private goldOrbs: Phaser.GameObjects.Container[] = [];
+  private path!: Phaser.Curves.Path;
+  private pathLength: number = 0;
 
-  // 게임 상태 (literal-narrowing 회피용 명시적 number)
   private hp: number = STATS.baseHp;
   private hpMax: number = STATS.baseHp;
   private gold: number = 0;
@@ -32,13 +44,9 @@ export class MainScene extends Phaser.Scene {
   private lastSpawnAt: number = 0;
   private lastAttackAt: number = 0;
   private stats: CharacterStats = initialStats();
-  private isGameOver = false;
-  private isInterStage = false;
+  private isGameOver: boolean = false;
+  private isInterStage: boolean = false;
 
-  // 정적 그래픽 (1회 그림)
-  private hudFrame!: Phaser.GameObjects.Graphics;
-
-  // 정리용 핸들러 ref
   private onUpgradeRequest = (kind: UpgradeKind) => this.tryUpgrade(kind);
   private onRestart = () => this.restart();
 
@@ -48,17 +56,14 @@ export class MainScene extends Phaser.Scene {
 
   create(): void {
     this.drawBackground();
-    this.drawLane();
+    this.buildPath();
+    this.drawPath();
+    this.drawFlagAndCastle();
+    this.drawTreesAndFlowers();
 
     this.character = new Character(this, WORLD.characterX, WORLD.characterY);
-
-    // 사거리는 캐릭터 옆에 있고 차선은 위(laneCenterY). 캐릭터를 차선과 가깝게.
-    this.character.setPosition(WORLD.characterX, WORLD.laneCenterY + WORLD.laneHalfH + 60);
+    this.character.setDepth(15);
     this.character.drawRange(this.stats.range);
-
-    this.hudFrame = this.add.graphics();
-    this.hudFrame.setDepth(50);
-    this.drawHudFrame();
 
     gameBus.on(BUS_EVENTS.upgradeRequest, this.onUpgradeRequest);
     gameBus.on(BUS_EVENTS.restart, this.onRestart);
@@ -75,27 +80,24 @@ export class MainScene extends Phaser.Scene {
   override update(_time: number, delta: number): void {
     if (this.isGameOver) return;
 
-    // 캐릭터 / 몹 애니메이션
     this.character.tickAnim(delta);
     for (const m of this.mobs) m.tickAnim(delta);
 
-    // 골드 orb 부유 애니메이션
+    // 골드 orb 부유
     for (const o of this.goldOrbs) {
       o.y -= delta * 0.04;
-      const data = o.getData('life') as number | undefined;
-      const nextLife = (data ?? 600) - delta;
-      o.setData('life', nextLife);
-      o.setAlpha(Math.max(0, Math.min(1, nextLife / 600)));
-      if (nextLife <= 0) {
-        o.destroy();
-      }
+      const life = (o.getData('life') as number | undefined) ?? 600;
+      const next = life - delta;
+      o.setData('life', next);
+      o.setAlpha(Math.max(0, Math.min(1, next / 600)));
+      if (next <= 0) o.destroy();
     }
     this.goldOrbs = this.goldOrbs.filter((o) => o.active);
 
-    // 몹 스폰
+    // 스폰
     if (!this.isInterStage && this.mobsToSpawn > 0) {
       this.lastSpawnAt += delta;
-      const interval = isBossStage(this.stage) ? 600 : STAGE.mobSpawnInterval;
+      const interval = isBossStage(this.stage) ? 800 : STAGE.mobSpawnInterval;
       if (this.lastSpawnAt >= interval) {
         this.spawnMob();
         this.lastSpawnAt = 0;
@@ -105,23 +107,26 @@ export class MainScene extends Phaser.Scene {
     // 자동 공격
     this.lastAttackAt += delta;
     if (this.lastAttackAt >= this.stats.attackCooldown) {
-      const hit = this.tryAttack();
-      if (hit) this.lastAttackAt = 0;
+      if (this.tryAttack()) this.lastAttackAt = 0;
     }
 
-    // 몹 진행 / 도달 처리
+    // 경로 진행
+    const dtSec = delta / 1000;
     for (let i = this.mobs.length - 1; i >= 0; i -= 1) {
       const m = this.mobs[i];
       if (!m) continue;
-      if (m.x > GAME_WIDTH + 60) {
-        // 도달 → 라이프 감소
+      m.pathT += (m.speed / this.pathLength) * dtSec;
+      if (m.pathT >= 1) {
         this.takeLifeHit();
         m.destroy();
         this.mobs.splice(i, 1);
+        continue;
       }
+      const pt = this.path.getPoint(m.pathT);
+      m.setPosition(pt.x, pt.y);
     }
 
-    // 스테이지 종료 체크
+    // 스테이지 종료
     if (
       !this.isInterStage &&
       this.mobsToSpawn === 0 &&
@@ -132,6 +137,8 @@ export class MainScene extends Phaser.Scene {
     }
   }
 
+  // ─── 배경/경로/데코 ────────────────────────────────────────
+
   private drawBackground(): void {
     const tileSize = 64;
     for (let y = 0; y < GAME_HEIGHT; y += tileSize) {
@@ -139,46 +146,234 @@ export class MainScene extends Phaser.Scene {
         this.add.image(x, y, 'tile-grass').setOrigin(0, 0).setDepth(0);
       }
     }
+    // 그라데이션 비네팅 (가장자리 살짝 어둡게)
+    const v = this.add.graphics();
+    v.setDepth(0.5);
+    v.fillStyle(0x2c1d12, 0.18);
+    v.fillRect(0, 0, GAME_WIDTH, 40);
+    v.fillRect(0, GAME_HEIGHT - 40, GAME_WIDTH, 40);
   }
 
-  private drawLane(): void {
-    const cy = WORLD.laneCenterY;
-    const h = WORLD.laneHalfH * 2;
-    const tileSize = 64;
-    for (let x = 0; x < GAME_WIDTH; x += tileSize) {
-      for (let y = cy - h / 2; y < cy + h / 2; y += tileSize) {
-        this.add.image(x, y, 'tile-path').setOrigin(0, 0).setDepth(1);
-      }
+  private buildPath(): void {
+    const head = PATH_POINTS[0];
+    if (!head) return;
+    const rest = PATH_POINTS.slice(1).map((p) => new Phaser.Math.Vector2(p.x, p.y));
+    this.path = new Phaser.Curves.Path(head.x, head.y);
+    this.path.splineTo(rest);
+    this.pathLength = this.path.getLength();
+  }
+
+  private drawPath(): void {
+    // 경로 그림자
+    const shadow = this.add.graphics();
+    shadow.setDepth(2);
+    shadow.lineStyle(PATH_EDGE_WIDTH + 8, 0x2c1d12, 0.18);
+    this.path.draw(shadow, 96);
+
+    // 경로 외곽 (어두운 흙)
+    const edge = this.add.graphics();
+    edge.setDepth(3);
+    edge.lineStyle(PATH_EDGE_WIDTH, PALETTE.pathDark, 1);
+    this.path.draw(edge, 96);
+
+    // 경로 내부 (밝은 흙)
+    const inner = this.add.graphics();
+    inner.setDepth(4);
+    inner.lineStyle(PATH_WIDTH, PALETTE.path, 1);
+    this.path.draw(inner, 96);
+
+    // 경로 위 가벼운 점박이 (자갈)
+    const speckle = this.add.graphics();
+    speckle.setDepth(5);
+    for (let i = 0; i < 80; i += 1) {
+      const t = i / 80;
+      const p = this.path.getPoint(t);
+      const ox = (Math.random() - 0.5) * 18;
+      const oy = (Math.random() - 0.5) * 18;
+      speckle.fillStyle(PALETTE.pathDark, 0.5);
+      speckle.fillCircle(p.x + ox, p.y + oy, 1.5);
     }
-    // 경계
-    this.add.rectangle(0, cy - WORLD.laneHalfH - 2, GAME_WIDTH, 4, 0x9a7a52, 0.5).setOrigin(0, 0).setDepth(2);
-    this.add.rectangle(0, cy + WORLD.laneHalfH - 2, GAME_WIDTH, 4, 0x9a7a52, 0.5).setOrigin(0, 0).setDepth(2);
-
-    // 시작 / 종료 게이트
-    const startGate = this.add.graphics();
-    startGate.fillStyle(0x2c1d12, 0.18);
-    startGate.fillRect(0, cy - WORLD.laneHalfH, 10, WORLD.laneHalfH * 2);
-    startGate.setDepth(2);
-    const endGate = this.add.graphics();
-    endGate.fillStyle(PALETTE.hp, 0.32);
-    endGate.fillRect(GAME_WIDTH - 10, cy - WORLD.laneHalfH, 10, WORLD.laneHalfH * 2);
-    endGate.setDepth(2);
   }
 
-  private drawHudFrame(): void {
-    // 상단 / 하단 패널 배경만 — 텍스트는 React 오버레이가 담당
-    this.hudFrame.clear();
-    this.hudFrame.fillStyle(PALETTE.surfaceCard, 0.94);
-    this.hudFrame.fillRect(0, 0, GAME_WIDTH, WORLD.topPad);
-    this.hudFrame.fillStyle(PALETTE.surfacePanel, 0.96);
-    this.hudFrame.fillRect(0, GAME_HEIGHT - WORLD.bottomPad, GAME_WIDTH, WORLD.bottomPad);
+  private drawFlagAndCastle(): void {
+    // 시작 지점 깃발
+    const start = PATH_POINTS[0]!;
+    this.drawFlag(start.x, start.y - 14);
+
+    // 끝 지점 성채
+    const end = PATH_POINTS[PATH_POINTS.length - 1]!;
+    this.drawCastle(end.x, end.y + 32);
   }
+
+  private drawFlag(x: number, y: number): void {
+    const g = this.add.graphics();
+    g.setDepth(8);
+    // 깃대
+    g.fillStyle(PALETTE.flagPole, 1);
+    g.fillRect(x - 2, y - 60, 4, 60);
+    // 깃발 (펄럭이는 모양)
+    g.fillStyle(PALETTE.flagCloth, 1);
+    g.fillTriangle(x + 2, y - 56, x + 34, y - 48, x + 2, y - 40);
+    // 그림자
+    const sh = this.add.image(x, y + 4, 'shadow');
+    sh.setAlpha(0.35);
+    sh.setDepth(7);
+  }
+
+  private drawCastle(x: number, y: number): void {
+    const g = this.add.graphics();
+    g.setDepth(8);
+    // 그림자
+    g.fillStyle(0x2c1d12, 0.25);
+    g.fillEllipse(x, y + 56, 130, 22);
+    // 본체
+    g.fillStyle(PALETTE.castleStone, 1);
+    g.lineStyle(3, PALETTE.castleStoneDark, 1);
+    g.fillRoundedRect(x - 56, y - 30, 112, 80, 6);
+    g.strokeRoundedRect(x - 56, y - 30, 112, 80, 6);
+    // 좌우 탑
+    g.fillRoundedRect(x - 70, y - 50, 24, 100, 4);
+    g.strokeRoundedRect(x - 70, y - 50, 24, 100, 4);
+    g.fillRoundedRect(x + 46, y - 50, 24, 100, 4);
+    g.strokeRoundedRect(x + 46, y - 50, 24, 100, 4);
+    // 톱니 (성가퀴)
+    g.fillStyle(PALETTE.castleStone, 1);
+    for (let i = -3; i <= 3; i += 1) {
+      const cx = x + i * 14;
+      g.fillRect(cx - 4, y - 38, 8, 10);
+      g.lineStyle(2, PALETTE.castleStoneDark, 1);
+      g.strokeRect(cx - 4, y - 38, 8, 10);
+    }
+    // 지붕 (좌우 탑)
+    g.fillStyle(PALETTE.castleRoof, 1);
+    g.lineStyle(2, 0x6f2222, 1);
+    g.fillTriangle(x - 72, y - 50, x - 44, y - 50, x - 58, y - 76);
+    g.strokeTriangle(x - 72, y - 50, x - 44, y - 50, x - 58, y - 76);
+    g.fillTriangle(x + 44, y - 50, x + 72, y - 50, x + 58, y - 76);
+    g.strokeTriangle(x + 44, y - 50, x + 72, y - 50, x + 58, y - 76);
+    // 정문
+    g.fillStyle(0x6b4523, 1);
+    g.lineStyle(2, 0x3e2710, 1);
+    g.fillRoundedRect(x - 14, y + 12, 28, 38, { tl: 14, tr: 14, bl: 0, br: 0 });
+    g.strokeRoundedRect(x - 14, y + 12, 28, 38, { tl: 14, tr: 14, bl: 0, br: 0 });
+    // 깃발 위
+    g.fillStyle(PALETTE.flagCloth, 1);
+    g.fillRect(x - 1, y - 96, 2, 22);
+    g.fillTriangle(x + 1, y - 96, x + 18, y - 90, x + 1, y - 84);
+  }
+
+  private drawTreesAndFlowers(): void {
+    // 경로 외 영역에 나무/꽃 산발 배치 (경로 침범 방지)
+    const minDistFromPath = 60;
+    const candidates: Array<{ x: number; y: number; size: number; kind: 'tree' | 'bush' | 'flower' }> = [];
+    let attempts = 0;
+    while (candidates.length < 28 && attempts < 600) {
+      attempts += 1;
+      const x = 24 + Math.random() * (GAME_WIDTH - 48);
+      const y = WORLD.topPad + 30 + Math.random() * (GAME_HEIGHT - WORLD.topPad - WORLD.bottomPad - 60);
+      // 경로 거리 체크 (샘플)
+      let tooClose = false;
+      for (let i = 0; i <= 30; i += 1) {
+        const p = this.path.getPoint(i / 30);
+        const dx = p.x - x;
+        const dy = p.y - y;
+        if (dx * dx + dy * dy < minDistFromPath * minDistFromPath) {
+          tooClose = true;
+          break;
+        }
+      }
+      if (tooClose) continue;
+      // 캐릭터 가드포스트 근처도 회피
+      const cdx = x - WORLD.characterX;
+      const cdy = y - WORLD.characterY;
+      if (cdx * cdx + cdy * cdy < 90 * 90) continue;
+      // 기존 후보와 너무 가까우면 회피
+      let close = false;
+      for (const c of candidates) {
+        const ddx = c.x - x;
+        const ddy = c.y - y;
+        if (ddx * ddx + ddy * ddy < 60 * 60) {
+          close = true;
+          break;
+        }
+      }
+      if (close) continue;
+      const r = Math.random();
+      const kind: 'tree' | 'bush' | 'flower' = r < 0.45 ? 'tree' : r < 0.75 ? 'bush' : 'flower';
+      candidates.push({ x, y, size: 0.8 + Math.random() * 0.5, kind });
+    }
+    candidates.sort((a, b) => a.y - b.y);
+    for (const c of candidates) {
+      if (c.kind === 'tree') this.drawTree(c.x, c.y, c.size);
+      else if (c.kind === 'bush') this.drawBush(c.x, c.y, c.size);
+      else this.drawFlower(c.x, c.y, c.size);
+    }
+  }
+
+  private drawTree(x: number, y: number, scale: number): void {
+    const g = this.add.graphics();
+    g.setDepth(6);
+    const s = scale;
+    // 그림자
+    g.fillStyle(0x2c1d12, 0.28);
+    g.fillEllipse(x, y + 10 * s, 40 * s, 12 * s);
+    // 줄기
+    g.fillStyle(PALETTE.treeTrunk, 1);
+    g.fillRoundedRect(x - 5 * s, y - 8 * s, 10 * s, 22 * s, 3);
+    // 잎 (3겹)
+    g.fillStyle(PALETTE.treeLeaves, 1);
+    g.lineStyle(2, 0x2c4a1e, 1);
+    g.fillCircle(x, y - 20 * s, 22 * s);
+    g.strokeCircle(x, y - 20 * s, 22 * s);
+    g.fillStyle(PALETTE.treeLeavesAlt, 1);
+    g.fillCircle(x - 12 * s, y - 14 * s, 14 * s);
+    g.strokeCircle(x - 12 * s, y - 14 * s, 14 * s);
+    g.fillCircle(x + 12 * s, y - 14 * s, 14 * s);
+    g.strokeCircle(x + 12 * s, y - 14 * s, 14 * s);
+  }
+
+  private drawBush(x: number, y: number, scale: number): void {
+    const g = this.add.graphics();
+    g.setDepth(6);
+    const s = scale;
+    g.fillStyle(0x2c1d12, 0.22);
+    g.fillEllipse(x, y + 6 * s, 28 * s, 8 * s);
+    g.fillStyle(PALETTE.treeLeaves, 1);
+    g.lineStyle(2, 0x2c4a1e, 1);
+    g.fillCircle(x - 8 * s, y, 11 * s);
+    g.fillCircle(x + 8 * s, y, 11 * s);
+    g.fillCircle(x, y - 4 * s, 13 * s);
+    g.strokeCircle(x - 8 * s, y, 11 * s);
+    g.strokeCircle(x + 8 * s, y, 11 * s);
+    g.strokeCircle(x, y - 4 * s, 13 * s);
+  }
+
+  private drawFlower(x: number, y: number, scale: number): void {
+    const g = this.add.graphics();
+    g.setDepth(6);
+    const s = scale;
+    const colors = [0xff8c8c, 0xffd35e, 0xffffff, 0xd4a5ff];
+    const color = colors[Math.floor(Math.random() * colors.length)] ?? 0xff8c8c;
+    g.fillStyle(0x3e7f2f, 1);
+    g.fillRect(x - 1, y - 4 * s, 2, 8 * s);
+    for (let i = 0; i < 5; i += 1) {
+      const a = (Math.PI * 2 * i) / 5;
+      const px = x + Math.cos(a) * 5 * s;
+      const py = y - 4 * s + Math.sin(a) * 5 * s;
+      g.fillStyle(color, 1);
+      g.fillCircle(px, py, 3 * s);
+    }
+    g.fillStyle(0xffd35e, 1);
+    g.fillCircle(x, y - 4 * s, 2.5 * s);
+  }
+
+  // ─── 게임 루프 ─────────────────────────────────────────────
 
   private startStage(stage: number): void {
     this.stage = stage;
     this.mobsToSpawn = mobsThisStage(stage);
     this.mobsSpawnedThisStage = 0;
-    this.lastSpawnAt = STAGE.mobSpawnInterval; // 즉시 첫 스폰
+    this.lastSpawnAt = STAGE.mobSpawnInterval;
     this.isInterStage = false;
     const text = isBossStage(stage) ? `보스 등장! 스테이지 ${stage}` : `스테이지 ${stage}`;
     this.toast(text, isBossStage(stage) ? 'warn' : 'info', 1400);
@@ -199,16 +394,19 @@ export class MainScene extends Phaser.Scene {
   private spawnMob(): void {
     const boss = isBossStage(this.stage);
     const hp = boss ? computeBossHp(this.stage) : computeMobHp(this.stage);
-    const speed = boss ? computeMobSpeed(this.stage) * STAGE.bossSpeedMult : computeMobSpeed(this.stage);
+    const speed = boss
+      ? computeMobSpeed(this.stage) * STAGE.bossSpeedMult
+      : computeMobSpeed(this.stage);
     const goldReward = boss ? STAGE.bossGold : computeMobGold();
-    const y = WORLD.laneCenterY + (Math.random() * 2 - 1) * (WORLD.laneHalfH * 0.55);
-    const mob = new Mob(this, -40, y, {
+    const start = this.path.getPoint(0);
+    const mob = new Mob(this, start.x, start.y, {
       kind: boss ? 'boss' : 'normal',
       hp,
       speed,
       goldReward,
       ...(boss ? { bossTier: Math.floor(this.stage / STAGE.bossEvery) } : {}),
     });
+    mob.pathT = 0;
     mob.setDepth(10);
     this.mobs.push(mob);
     this.mobsSpawnedThisStage += 1;
@@ -349,7 +547,6 @@ export class MainScene extends Phaser.Scene {
 
   private tryUpgrade(kind: UpgradeKind): void {
     if (this.isGameOver) return;
-    const cost = this.stats.damageTier !== undefined ? undefined : undefined; // tsc placeholder
     const c =
       kind === 'damage'
         ? STATS.damageCosts[this.stats.damageTier]
@@ -358,7 +555,6 @@ export class MainScene extends Phaser.Scene {
           : kind === 'range'
             ? STATS.rangeCosts[this.stats.rangeTier]
             : STATS.batCosts[this.stats.batTier];
-    void cost;
     if (c === undefined) {
       this.toast('최대 강화', 'warn', 900);
       return;

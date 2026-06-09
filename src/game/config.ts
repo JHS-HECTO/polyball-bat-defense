@@ -1,5 +1,4 @@
 // Phaser 게임 캔버스 설정 + 게임플레이 상수
-// 폴리볼 frame: 9:19.5 비율. 내부 좌표계 540 x 1170 (논리적 픽셀).
 
 export const GAME_WIDTH = 540;
 export const GAME_HEIGHT = 1170;
@@ -7,13 +6,27 @@ export const GAME_HEIGHT = 1170;
 export const WORLD = {
   topPad: 140,
   bottomPad: 220,
-  laneTop: 200,
-  laneBottom: 880,
-  characterX: GAME_WIDTH * 0.5,
-  characterY: 760,
-  laneCenterY: 500,
-  laneHalfH: 90,
+  // 캐릭터 가드포스트 (S-커브 중심 부근)
+  characterX: 295,
+  characterY: 605,
 } as const;
+
+// S-커브 경로 (위→아래). spline 컨트롤 포인트
+export const PATH_POINTS: ReadonlyArray<{ x: number; y: number }> = [
+  { x: 270, y: 160 },  // 시작 (깃발)
+  { x: 410, y: 250 },
+  { x: 430, y: 360 },
+  { x: 270, y: 430 },
+  { x: 110, y: 510 },
+  { x: 95, y: 620 },
+  { x: 220, y: 700 },
+  { x: 380, y: 780 },
+  { x: 410, y: 880 },
+  { x: 270, y: 940 },  // 끝 (성채)
+];
+
+export const PATH_WIDTH = 68;
+export const PATH_EDGE_WIDTH = 76;
 
 export const PALETTE = {
   surfaceBase: 0xfff7ea,
@@ -31,56 +44,57 @@ export const PALETTE = {
   boss: 0x8e3e3e,
   grass: 0x87b04a,
   grassDark: 0x6c9839,
+  grassLight: 0x9bc564,
   path: 0xc89968,
   pathDark: 0xa67b50,
+  pathLight: 0xddb586,
+  treeLeaves: 0x4d883a,
+  treeLeavesAlt: 0x65a04f,
+  treeTrunk: 0x6b4523,
+  castleStone: 0xc4bba8,
+  castleStoneDark: 0x8a7e6c,
+  castleRoof: 0xa53939,
+  flagPole: 0x6b4523,
+  flagCloth: 0xe25555,
 } as const;
 
-// 캐릭터 베이스 스탯 + 업그레이드 곡선
+// 캐릭터 베이스 + 업그레이드
 export const STATS = {
-  baseHp: 10,                // 라이프 (몹 도달 시 -1)
+  baseHp: 10,
   baseDamage: 10,
-  baseAttackCooldown: 700,   // ms
-  baseRange: 140,
-  swingArcMs: 220,           // 스윙 모션 길이
+  baseAttackCooldown: 700,
+  baseRange: 175,
+  swingArcMs: 220,
 
-  // 업그레이드별 효과
-  damageMult: 1.5,           // 티어마다 +50%
-  speedMult: 0.82,           // 쿨다운 18% 감소
-  rangeMult: 1.18,           // 사거리 +18%
-  batMult: 1.6,              // 빠따 교체 시 데미지 60% 부스트
+  damageMult: 1.5,
+  speedMult: 0.82,
+  rangeMult: 1.16,
+  batMult: 1.6,
 
-  // 코스트 (gold) — 티어 인덱스 → 비용
   damageCosts: [10, 25, 60, 150, 360, 800, 1800, 4000, 9000, 20000],
   speedCosts: [12, 30, 75, 180, 420, 950, 2100, 4600, 10000, 22000],
   rangeCosts: [15, 40, 100, 240, 560, 1280, 2800, 6200, 14000, 30000],
   batCosts: [200, 500, 1200, 3000, 7500, 18000, 42000, 95000],
 
-  // 빠따 티어별 시각 색상
   batColors: [0x8b5a2b, 0xa67139, 0xd4a04a, 0xe8c878, 0xf4d35e, 0xf2a35a, 0xe25555, 0x8b3e9c, 0x4aa3df],
 } as const;
 
-// 스테이지 → 몹 수, HP, 속도, 보상
 export const STAGE = {
   bossEvery: 10,
   baseMobHp: 18,
-  baseMobSpeed: 60,          // px/sec
+  baseMobSpeed: 95,          // px/sec along path
   baseMobsPerStage: 6,
   bossHpMult: 18,
   bossSpeedMult: 0.55,
   bossGold: 60,
   normalGoldMin: 1,
   normalGoldMax: 3,
-  // HP 스테이지마다 곱셈 인자
   mobHpGrow: 1.22,
-  // 보스 스테이지 인덱스마다 추가 강화
   bossHpGrow: 1.45,
-  // 몹 스폰 간격 (ms)
   mobSpawnInterval: 1200,
-  // 스테이지 클리어 후 다음 시작까지 (ms)
   interStageDelay: 1600,
 } as const;
 
-// 점수
 export const SCORE = {
   perMobKill: 50,
   perBossKill: 1500,

@@ -13,7 +13,6 @@ export const PhaserCanvas = () => {
     const parent = parentRef.current;
     if (!parent) return;
 
-    // 클라이언트 전용 import (SSR 회피)
     (async () => {
       const { createGame } = await import('game/createGame');
       if (cancelled) return;

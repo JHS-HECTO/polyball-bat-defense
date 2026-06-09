@@ -18,12 +18,16 @@ export class Mob extends Phaser.GameObjects.Container {
   hpMax: number;
   speed: number;
   goldReward: number;
-  bodyG: Phaser.GameObjects.Graphics;
-  hpBar: Phaser.GameObjects.Graphics;
-  shadow: Phaser.GameObjects.Image;
-  variantKey: string;
-  bounceTimeline: number = 0;
-  hitFlash: number = 0;
+
+  // 경로 진행도 0~1
+  pathT: number = 0;
+
+  private bodyG: Phaser.GameObjects.Graphics;
+  private hpBar: Phaser.GameObjects.Graphics;
+  private shadow: Phaser.GameObjects.Image;
+  private variantKey: string;
+  private bounceTimeline: number = 0;
+  private hitFlash: number = 0;
 
   constructor(
     scene: Phaser.Scene,
@@ -42,27 +46,21 @@ export class Mob extends Phaser.GameObjects.Container {
         ? 'boss'
         : MOB_VARIANTS[Math.floor(Math.random() * MOB_VARIANTS.length)] ?? 'slime';
 
-    this.shadow = scene.add.image(0, 18, 'shadow');
+    this.shadow = scene.add.image(0, this.kind === 'boss' ? 32 : 20, 'shadow');
     this.shadow.setAlpha(0.4);
+    if (this.kind === 'boss') this.shadow.setScale(1.4);
     this.add(this.shadow);
 
     this.bodyG = scene.add.graphics();
     this.add(this.bodyG);
-    this.drawBody();
 
     this.hpBar = scene.add.graphics();
     this.add(this.hpBar);
+
+    this.drawBody();
     this.drawHpBar();
 
     scene.add.existing(this);
-    scene.physics.add.existing(this);
-
-    const body = this.body as Phaser.Physics.Arcade.Body;
-    const radius = options.kind === 'boss' ? 44 : 22;
-    body.setCircle(radius, -radius, -radius);
-    body.setVelocityX(this.speed);
-
-    this.setSize(radius * 2, radius * 2);
   }
 
   private drawBody(): void {
@@ -79,9 +77,8 @@ export class Mob extends Phaser.GameObjects.Container {
     const flash = this.hitFlash;
     const body = flash > 0 ? this.lighten(p.body, 0.5) : p.body;
 
-    const sway = Math.sin(this.bounceTimeline * 0.012) * 1.2;
+    const sway = Math.sin(this.bounceTimeline * 0.012) * 1.4;
 
-    // 몸통 (둥근 형태 - variant에 따라 미세 변형)
     this.bodyG.fillStyle(body, 1);
     this.bodyG.lineStyle(3, p.outline, 1);
 
@@ -97,24 +94,20 @@ export class Mob extends Phaser.GameObjects.Container {
     } else if (this.variantKey === 'bat') {
       this.bodyG.fillEllipse(0, sway, 32, 30);
       this.bodyG.strokeEllipse(0, sway, 32, 30);
-      // 날개
       this.bodyG.fillStyle(p.outline, 1);
       this.bodyG.fillTriangle(-14, -2 + sway, -28, -10 + sway, -22, 6 + sway);
       this.bodyG.fillTriangle(14, -2 + sway, 28, -10 + sway, 22, 6 + sway);
     } else if (this.variantKey === 'orc') {
       this.bodyG.fillRoundedRect(-20, -20 + sway, 40, 38, 8);
       this.bodyG.strokeRoundedRect(-20, -20 + sway, 40, 38, 8);
-      // 송곳니
       this.bodyG.fillStyle(0xffffff, 1);
       this.bodyG.fillTriangle(-6, 6 + sway, -2, 12 + sway, -8, 12 + sway);
       this.bodyG.fillTriangle(6, 6 + sway, 2, 12 + sway, 8, 12 + sway);
     } else {
-      // ghost
       this.bodyG.fillRoundedRect(-18, -18 + sway, 36, 32, 14);
       this.bodyG.strokeRoundedRect(-18, -18 + sway, 36, 32, 14);
     }
 
-    // 눈
     this.bodyG.fillStyle(p.eye, 1);
     this.bodyG.fillCircle(-7, -4 + sway, 3);
     this.bodyG.fillCircle(7, -4 + sway, 3);
@@ -130,43 +123,43 @@ export class Mob extends Phaser.GameObjects.Container {
     const body = flash > 0 ? 0xff8a8a : 0x8e3e3e;
     const outline = 0x4d1a1a;
 
-    // 큰 몸통
+    const sway = Math.sin(this.bounceTimeline * 0.008) * 2;
+
     this.bodyG.fillStyle(body, 1);
     this.bodyG.lineStyle(4, outline, 1);
-    this.bodyG.fillCircle(0, 0, 42);
-    this.bodyG.strokeCircle(0, 0, 42);
+    this.bodyG.fillCircle(0, sway, 44);
+    this.bodyG.strokeCircle(0, sway, 44);
 
     // 뿔
     this.bodyG.fillStyle(outline, 1);
-    this.bodyG.fillTriangle(-18, -32, -10, -50, -2, -36);
-    this.bodyG.fillTriangle(18, -32, 10, -50, 2, -36);
+    this.bodyG.fillTriangle(-20, -32 + sway, -10, -54 + sway, -2, -34 + sway);
+    this.bodyG.fillTriangle(20, -32 + sway, 10, -54 + sway, 2, -34 + sway);
 
     // 눈
     this.bodyG.fillStyle(0xffd35e, 1);
-    this.bodyG.fillCircle(-14, -4, 7);
-    this.bodyG.fillCircle(14, -4, 7);
+    this.bodyG.fillCircle(-14, -4 + sway, 7);
+    this.bodyG.fillCircle(14, -4 + sway, 7);
     if (flash <= 0) {
       this.bodyG.fillStyle(0x2c1d12, 1);
-      this.bodyG.fillCircle(-14, -4, 3);
-      this.bodyG.fillCircle(14, -4, 3);
+      this.bodyG.fillCircle(-14, -4 + sway, 3);
+      this.bodyG.fillCircle(14, -4 + sway, 3);
     }
 
     // 입
     this.bodyG.lineStyle(3, outline, 1);
     this.bodyG.beginPath();
-    this.bodyG.arc(0, 14, 12, 0.2, Math.PI - 0.2, false);
+    this.bodyG.arc(0, 14 + sway, 12, 0.2, Math.PI - 0.2, false);
     this.bodyG.strokePath();
-    // 송곳니
     this.bodyG.fillStyle(0xffffff, 1);
-    this.bodyG.fillTriangle(-8, 14, -4, 26, -10, 22);
-    this.bodyG.fillTriangle(8, 14, 4, 26, 10, 22);
+    this.bodyG.fillTriangle(-8, 14 + sway, -4, 26 + sway, -10, 22 + sway);
+    this.bodyG.fillTriangle(8, 14 + sway, 4, 26 + sway, 10, 22 + sway);
   }
 
   private drawHpBar(): void {
     this.hpBar.clear();
-    const w = this.kind === 'boss' ? 70 : 38;
-    const h = this.kind === 'boss' ? 7 : 5;
-    const y = this.kind === 'boss' ? -56 : -32;
+    const w = this.kind === 'boss' ? 80 : 38;
+    const h = this.kind === 'boss' ? 8 : 5;
+    const y = this.kind === 'boss' ? -64 : -32;
     const ratio = Math.max(0, this.hp / this.hpMax);
     this.hpBar.fillStyle(0x2c1d12, 0.45);
     this.hpBar.fillRoundedRect(-w / 2 - 1, y - 1, w + 2, h + 2, 3);
@@ -178,7 +171,7 @@ export class Mob extends Phaser.GameObjects.Container {
 
   takeDamage(amount: number): boolean {
     this.hp -= amount;
-    this.hitFlash = 90; // ms
+    this.hitFlash = 90;
     this.drawBody();
     this.drawHpBar();
     return this.hp <= 0;
@@ -197,11 +190,8 @@ export class Mob extends Phaser.GameObjects.Container {
       this.hitFlash -= deltaMs;
       if (this.hitFlash <= 0) {
         this.hitFlash = 0;
-        this.drawBody();
       }
-    } else {
-      // 미세 흔들림 애니메이션
-      this.drawBody();
     }
+    this.drawBody();
   }
 }
