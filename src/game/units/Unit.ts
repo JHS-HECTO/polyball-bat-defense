@@ -97,10 +97,14 @@ export class Unit extends Phaser.GameObjects.Container {
     this.levelTag.setOrigin(0.5);
     this.add(this.levelTag);
 
-    // 큰 hit 영역 (터치 드래그 편함)
-    this.setSize(80, 96);
-    this.setInteractive(new Phaser.Geom.Rectangle(-40, -56, 80, 96), Phaser.Geom.Rectangle.Contains);
-    scene.input.setDraggable(this);
+    // 매우 큰 hit 영역 (터치 드래그 안정성)
+    this.setSize(100, 110);
+    this.setInteractive({
+      hitArea: new Phaser.Geom.Rectangle(-50, -64, 100, 110),
+      hitAreaCallback: Phaser.Geom.Rectangle.Contains,
+      useHandCursor: true,
+      draggable: true,
+    });
 
     scene.add.existing(this);
   }

@@ -553,6 +553,11 @@ export class MainScene extends Phaser.Scene {
   // ─── 드래그/머지 ────────────────────────────────────────────
 
   private attachDragHandlers(): void {
+    // 드래그 임계값 0 — 살짝만 움직여도 드래그 시작
+    this.input.dragDistanceThreshold = 0;
+    // 드래그 멀티 터치 활성
+    this.input.setTopOnly(false);
+
     this.input.on(
       Phaser.Input.Events.DRAG_START,
       (_pointer: Phaser.Input.Pointer, obj: Phaser.GameObjects.GameObject) => {
