@@ -1,0 +1,88 @@
+.shell {
+  position: fixed;
+  inset: 0;
+  overflow: auto;
+  padding: 3rem 2rem 6rem;
+  background: linear-gradient(160deg, #2c1d12 0%, #4a2f1c 100%);
+  color: var(--colors-text-inverse);
+}
+
+.intro {
+  max-width: 86rem;
+  margin: 0 auto 3rem;
+  text-align: center;
+}
+
+.title {
+  font-size: 3rem;
+  font-weight: 800;
+  margin: 0 0 0.6rem;
+}
+
+.subtitle {
+  font-size: 1.4rem;
+  color: rgba(255, 250, 242, 0.7);
+  margin: 0;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(34rem, 1fr));
+  gap: 2.4rem;
+  max-width: 144rem;
+  margin: 0 auto;
+}
+
+.card {
+  background: rgba(255, 250, 242, 0.06);
+  border-radius: var(--radius-lg);
+  padding: 1.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.cardHead {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.cardIdx {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: var(--radius-pill);
+  background: var(--colors-primary1);
+  color: var(--colors-text-primary);
+  font-weight: 800;
+  font-size: 1.2rem;
+}
+
+.cardTitle {
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.mini {
+  position: relative;
+  aspect-ratio: 9 / 19.5;
+  width: 100%;
+  background: var(--colors-surface-base);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  contain: layout paint style;
+  transform: translateZ(0);
+  box-shadow: var(--shadow-2);
+  color: var(--colors-text-primary);
+}
+
+.miniBg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 30% 45%, rgba(135, 176, 74, 0.4) 0%, transparent 60%),
+    linear-gradient(180deg, #fff7ea 0%, #f4e8d0 100%);
+}

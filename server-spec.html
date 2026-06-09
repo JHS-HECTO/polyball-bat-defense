@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>빠따 디펜스 — 서버 통합 한 페이지 요약</title>
+  <style>
+    :root {
+      --ink: #2c1d12;
+      --soft: #5d4632;
+      --muted: #8a7563;
+      --cream: #fff7ea;
+      --primary: #ffb347;
+      --primary-strong: #d96a2c;
+      --warn: #e25555;
+      --ok: #5bb95b;
+      --grid: #e9ddc7;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 32px; font-family: -apple-system, BlinkMacSystemFont, 'Pretendard', 'Segoe UI', sans-serif; background: var(--cream); color: var(--ink); line-height: 1.5; }
+    h1 { font-size: 28px; margin: 0 0 4px; }
+    .sub { color: var(--soft); margin: 0 0 20px; }
+    h2 { font-size: 18px; margin: 28px 0 12px; padding-bottom: 6px; border-bottom: 2px solid var(--grid); }
+    h3 { font-size: 14px; margin: 14px 0 6px; color: var(--primary-strong); }
+    table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 13px; }
+    th, td { border: 1px solid var(--grid); padding: 6px 10px; text-align: left; vertical-align: top; }
+    th { background: #ffeed1; font-weight: 700; }
+    code { background: #fceedb; padding: 2px 6px; border-radius: 4px; font-family: 'JetBrains Mono', Consolas, monospace; font-size: 12px; }
+    pre { background: #fceedb; padding: 12px; border-radius: 8px; overflow-x: auto; font-size: 12px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
+    .card { background: #fff; padding: 14px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.06); }
+    .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+    .pill-in { background: #d6f0ff; color: #0d4d7a; }
+    .pill-out { background: #ffe7c4; color: #884b00; }
+    .alert { background: #ffeebb; border-left: 4px solid var(--primary); padding: 10px 12px; border-radius: 4px; margin: 10px 0; font-size: 13px; }
+    .ok { color: var(--ok); font-weight: 700; }
+    .warn { color: var(--warn); font-weight: 700; }
+  </style>
+</head>
+<body>
+
+<h1>🏏 빠따 디펜스 — 서버 통합 한 페이지 요약</h1>
+<p class="sub">폴리볼 미니게임. iframe 임베드. prefix <code>DEF:</code>. 일일 응모권 cap 3장.</p>
+
+<div class="alert"><b>핵심 1줄:</b> 보스 처치 → <code>DEF:CLAIM_TICKET</code> → 서버 검증 → <code>DEF:TICKET_GRANTED</code> 또는 <code>DEF:TICKET_REJECTED</code>. <b>1번째 무료, 2~3번째 광고 시청 필수.</b></div>
+
+<h2>1. 임베드 URL</h2>
+<p><code>https://polyball-bat-defense.vercel.app</code> · Next.js 16 + Phaser 3</p>
+
+<h2>2. postMessage 메시지 표</h2>
+
+<div class="grid">
+  <div class="card">
+    <h3>게임 → 부모 <span class="pill pill-out">OUT</span></h3>
+    <table>
+      <tr><th>type</th><th>payload</th></tr>
+      <tr><td><code>DEF:READY</code></td><td>—</td></tr>
+      <tr><td><code>DEF:PLAY_AD_REWARDED</code></td><td><code>{ reason: 'ticket_2nd' | 'ticket_3rd' }</code></td></tr>
+      <tr><td><code>DEF:CLAIM_TICKET</code></td><td><code>{ source: 'boss_kill', adWatched: boolean, stage?: number }</code></td></tr>
+      <tr><td><code>DEF:SCORE_UPDATE</code></td><td><code>{ total_score: number }</code> (선택)</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h3>부모 → 게임 <span class="pill pill-in">IN</span></h3>
+    <table>
+      <tr><th>type</th><th>payload</th></tr>
+      <tr><td><code>DEF:SET_PLAYER</code></td><td><code>{ player: { nickname, team?, user_id? }, total_score? }</code></td></tr>
+      <tr><td><code>DEF:AD_REWARDED_COMPLETED</code></td><td><code>{ reason }</code></td></tr>
+      <tr><td><code>DEF:AD_REWARDED_FAILED</code></td><td><code>{ reason, cause? }</code></td></tr>
+      <tr><td><code>DEF:TICKET_GRANTED</code></td><td><code>{ count: number, source? }</code></td></tr>
+      <tr><td><code>DEF:TICKET_REJECTED</code></td><td><code>{ reason: 'cap_reached' | ... }</code></td></tr>
+    </table>
+  </div>
+</div>
+
+<h2>3. 일일 응모권 정책 (3장 cap)</h2>
+<table>
+  <tr><th>순번</th><th>트리거</th><th>광고</th><th>흐름</th></tr>
+  <tr><td>1</td><td>보스 처치</td><td>X</td><td>CLAIM_TICKET(adWatched: false) → 서버 적립 → TICKET_GRANTED(count=1)</td></tr>
+  <tr><td>2</td><td>보스 처치</td><td><span class="warn">필수</span></td><td>PLAY_AD_REWARDED → AD_COMPLETED → CLAIM_TICKET(adWatched: true) → TICKET_GRANTED(count=2)</td></tr>
+  <tr><td>3</td><td>보스 처치</td><td><span class="warn">필수</span></td><td>동일. TICKET_GRANTED(count=3)</td></tr>
+  <tr><td>4+</td><td>보스 처치</td><td>—</td><td>TICKET_REJECTED(reason='cap_reached')</td></tr>
+</table>
+<p>자정 KST 자동 리셋. 게임 클라가 1분 폴링 + visibilitychange 감지.</p>
+
+<h2>4. 서버 API (권장)</h2>
+<h3>POST /api/games/def/claim</h3>
+<pre>요청:
+{
+  "user_id": "...",
+  "source": "boss_kill",
+  "adWatched": true,
+  "stage": 20,
+  "game_id": "DEF"
+}
+
+응답 200: { "count": 2, "remaining": 1 }
+응답 409: { "error": "cap_reached", "count": 3 }</pre>
+
+<h2>5. DB 스키마 (예시)</h2>
+<pre>CREATE TABLE polyball_minigame_tickets (
+  id BIGSERIAL PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  game_id TEXT NOT NULL,        -- 'DEF', 'BBADA', 'FISH'
+  ticket_date DATE NOT NULL,    -- KST 일자
+  source TEXT NOT NULL,
+  ad_watched BOOLEAN NOT NULL,
+  stage INTEGER,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX ix_def_user_date ON polyball_minigame_tickets (user_id, game_id, ticket_date);</pre>
+
+<h2>6. 보안 체크리스트</h2>
+<ul>
+  <li>parent 측 <code>event.origin</code> 화이트리스트 검증 <span class="ok">필수</span></li>
+  <li><code>adWatched</code> 검증: 광고 SDK 콜백 토큰 같이 받아 서버에서 재확인</li>
+  <li><code>source</code>는 화이트리스트 (현재 'boss_kill'만)</li>
+  <li>iframe sandbox: <code>allow-scripts allow-same-origin</code></li>
+</ul>
+
+<h2>7. 광고 정책 <span class="warn">필독</span></h2>
+<ul>
+  <li><b>Rewarded 전용</b>. 인터스티셜/자동 광고 절대 금지.</li>
+  <li>일 최대 노출: 2회 (응모권 2~3번째).</li>
+  <li>광고 실패 시 응모권 청구 자동 중단.</li>
+</ul>
+
+<h2>8. 표준 흐름 (한눈)</h2>
+<pre>READY → SET_PLAYER
+보스 처치 (cap=0) → CLAIM_TICKET(adWatched:false) → TICKET_GRANTED(1)
+보스 처치 (cap=1) → PLAY_AD_REWARDED → AD_COMPLETED → CLAIM_TICKET(true) → TICKET_GRANTED(2)
+보스 처치 (cap=2) → PLAY_AD_REWARDED → AD_COMPLETED → CLAIM_TICKET(true) → TICKET_GRANTED(3)
+보스 처치 (cap=3) → CLAIM_TICKET → TICKET_REJECTED(cap_reached)</pre>
+
+<h2>9. 산출물</h2>
+<ul>
+  <li>📦 게임 코드: <code>github.com/JHS-HECTO/polyball-bat-defense</code></li>
+  <li>🌐 Live: <code>polyball-bat-defense.vercel.app</code></li>
+  <li>📋 상세 명세: <code>INTEGRATION.md</code></li>
+  <li>🎨 자산 프롬프트: <code>Gemini_프롬프트_DEF_전체.md</code></li>
+  <li>🔍 QA 갤러리: <code>/qa</code> 라우트</li>
+</ul>
+
+<p style="margin-top:48px; color: var(--muted); font-size: 12px; text-align: center;">
+  Generated for 폴리볼 (111percent) — 빠따 디펜스 v0.1. 통합 문의: 게임 개발자 / 메시지 변경 시 양쪽 PR 동기화.
+</p>
+
+</body>
+</html>
