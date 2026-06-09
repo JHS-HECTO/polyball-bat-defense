@@ -45,34 +45,36 @@ export const BUS_EVENTS = {
   toast: 'toast',
 } as const;
 
-type Handler = (payload: unknown) => void;
-
 // 캐시 대상 이벤트 (신규 구독자에게 replay)
 const REPLAY_EVENTS = new Set<string>([BUS_EVENTS.state]);
 
+// 핸들러를 unknown으로 들고 다니다 호출 시점에 그대로 패스. 콜백 측에서 타입 좁힘.
+// on/off는 generic으로 받아 호출자에게 자연스러운 타입 추론 제공.
+type AnyHandler = (payload: never) => void;
+
 class Emitter {
-  private map = new Map<string, Set<Handler>>();
+  private map = new Map<string, Set<AnyHandler>>();
   private lastValue = new Map<string, unknown>();
 
-  on(event: string, fn: Handler): void {
-    const set = this.map.get(event) ?? new Set();
-    set.add(fn);
+  on<T>(event: string, fn: (payload: T) => void): void {
+    const set = this.map.get(event) ?? new Set<AnyHandler>();
+    set.add(fn as unknown as AnyHandler);
     this.map.set(event, set);
     if (REPLAY_EVENTS.has(event) && this.lastValue.has(event)) {
-      // 마지막 값 즉시 전달 (비동기로 - state setter 안전)
-      Promise.resolve().then(() => fn(this.lastValue.get(event)));
+      const cached = this.lastValue.get(event) as T;
+      Promise.resolve().then(() => fn(cached));
     }
   }
 
-  off(event: string, fn: Handler): void {
-    this.map.get(event)?.delete(fn);
+  off<T>(event: string, fn: (payload: T) => void): void {
+    this.map.get(event)?.delete(fn as unknown as AnyHandler);
   }
 
-  emit(event: string, payload?: unknown): void {
+  emit<T>(event: string, payload?: T): void {
     if (REPLAY_EVENTS.has(event)) this.lastValue.set(event, payload);
     const set = this.map.get(event);
     if (!set) return;
-    for (const fn of set) fn(payload);
+    for (const fn of set) (fn as unknown as (p: T | undefined) => void)(payload);
   }
 }
 

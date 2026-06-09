@@ -21,16 +21,16 @@ export class MainScene extends Phaser.Scene {
   private mobs: Mob[] = [];
   private goldOrbs: Phaser.GameObjects.Container[] = [];
 
-  // 게임 상태
-  private hp = STATS.baseHp;
-  private hpMax = STATS.baseHp;
-  private gold = 0;
-  private score = 0;
-  private stage = 1;
-  private mobsToSpawn = 0;
-  private mobsSpawnedThisStage = 0;
-  private lastSpawnAt = 0;
-  private lastAttackAt = 0;
+  // 게임 상태 (literal-narrowing 회피용 명시적 number)
+  private hp: number = STATS.baseHp;
+  private hpMax: number = STATS.baseHp;
+  private gold: number = 0;
+  private score: number = 0;
+  private stage: number = 1;
+  private mobsToSpawn: number = 0;
+  private mobsSpawnedThisStage: number = 0;
+  private lastSpawnAt: number = 0;
+  private lastAttackAt: number = 0;
   private stats: CharacterStats = initialStats();
   private isGameOver = false;
   private isInterStage = false;
@@ -72,7 +72,7 @@ export class MainScene extends Phaser.Scene {
     this.publishState();
   }
 
-  update(_time: number, delta: number): void {
+  override update(_time: number, delta: number): void {
     if (this.isGameOver) return;
 
     // 캐릭터 / 몹 애니메이션
