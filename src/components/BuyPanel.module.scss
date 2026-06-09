@@ -4,35 +4,37 @@
   right: 0;
   bottom: 0;
   z-index: var(--z-hud);
-  padding: 1rem 1.2rem 1.6rem;
+  padding: 0.4rem 0.8rem 0.8rem;
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
+  gap: 0.3rem;
+  pointer-events: none;
 }
 
 .hint {
-  font-size: 1.1rem;
+  font-size: 1rem;
   color: var(--colors-text-secondary);
   text-align: center;
+  opacity: 0.7;
 }
 
 .row {
   display: grid;
-  grid-template-columns: 1.4fr 1fr;
-  gap: 0.8rem;
+  grid-template-columns: 1fr;
+  gap: 0.4rem;
+  pointer-events: auto;
 }
 
 .buy {
   display: grid;
-  grid-template-areas:
-    'main main'
-    'cost slots';
-  gap: 0.2rem;
-  padding: 1rem 1.2rem;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 1rem;
   background: var(--colors-primary1);
   color: var(--colors-text-primary);
   border: 0.2rem solid var(--colors-primary3);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-pill);
   box-shadow: var(--shadow-2);
   cursor: pointer;
   font-family: inherit;
@@ -45,8 +47,6 @@
   &:disabled {
     opacity: 0.55;
     cursor: not-allowed;
-    background: var(--colors-surface-panel);
-    color: var(--colors-text-secondary);
   }
 }
 
@@ -55,68 +55,59 @@
 }
 
 .buyMain {
-  grid-area: main;
-  font-size: 1.6rem;
+  font-size: 1.4rem;
   font-weight: 800;
-  text-align: center;
 }
 
 .buyCost {
-  grid-area: cost;
-  font-size: 1.3rem;
+  font-size: 1.2rem;
   font-weight: 800;
   letter-spacing: -0.01em;
 }
 
 .slotCount {
-  grid-area: slots;
-  text-align: right;
-  font-size: 1.1rem;
+  font-size: 1rem;
   color: var(--colors-text-secondary);
 }
 
 .selected {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: auto auto auto;
-  gap: 0.2rem 0.6rem;
-  padding: 0.8rem 1rem;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.4rem 0.8rem;
   background: var(--colors-surface-card);
-  border: 0.2rem solid var(--colors-stroke-soft);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-pill);
   box-shadow: var(--shadow-1);
+  pointer-events: auto;
 }
 
 .selTitle {
-  grid-column: 1 / -1;
-  font-size: 1.3rem;
-  font-weight: 800;
+  font-size: 1.1rem;
+  font-weight: 700;
   color: var(--colors-text-primary);
 }
 
 .selLv {
   background: var(--colors-text-primary);
   color: var(--colors-text-inverse);
-  padding: 0.1rem 0.5rem;
+  padding: 0.05rem 0.4rem;
   border-radius: var(--radius-pill);
-  font-size: 1.1rem;
-  margin-left: 0.4rem;
+  font-size: 0.9rem;
+  margin-left: 0.3rem;
 }
 
 .selStat {
-  font-size: 1.1rem;
-  color: var(--colors-text-secondary);
-  font-variant-numeric: tabular-nums;
+  display: none;
 }
 
 .sell {
-  grid-column: 1 / -1;
-  padding: 0.5rem;
+  padding: 0.3rem 0.8rem;
   background: var(--colors-warning);
   border: 0;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
   font-weight: 800;
-  font-size: 1.2rem;
+  font-size: 1rem;
   color: var(--colors-text-primary);
   cursor: pointer;
   transition: transform 0.1s var(--ease-out-soft);
@@ -127,13 +118,5 @@
 }
 
 .selectedEmpty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 0.8rem;
-  background: var(--colors-surface-panel);
-  border-radius: var(--radius-md);
-  font-size: 1.2rem;
-  color: var(--colors-text-secondary);
+  display: none;
 }

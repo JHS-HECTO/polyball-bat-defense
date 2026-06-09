@@ -20,7 +20,20 @@ export const BuyPanel = () => {
 
   return (
     <div className={styles.panel}>
-      <div className={styles.hint}>같은 Lv 유닛 끼리 드래그 → 합성</div>
+      {selected ? (
+        <div className={styles.selected}>
+          <div className={styles.selTitle}>
+            {TYPE_LABELS[selected.type]} <span className={styles.selLv}>Lv{selected.level}</span>
+          </div>
+          <button
+            type="button"
+            className={styles.sell}
+            onClick={() => gameBus.emit(BUS_EVENTS.sellRequest)}
+          >
+            판매 +⛁{selected.sellRefund}
+          </button>
+        </div>
+      ) : null}
       <div className={styles.row}>
         <button
           type="button"
@@ -28,30 +41,12 @@ export const BuyPanel = () => {
           onClick={() => gameBus.emit(BUS_EVENTS.buyRequest)}
           disabled={!state.buyAffordable || state.fieldFull}
         >
-          <span className={styles.buyMain}>유닛 뽑기</span>
           <span className={styles.buyCost}>⛁ {state.buyCost.toLocaleString()}</span>
+          <span className={styles.buyMain}>유닛 소환</span>
           <span className={styles.slotCount}>
-            슬롯 {state.unitsPlaced}/{state.unitsMax}
+            {state.unitsPlaced}/{state.unitsMax}
           </span>
         </button>
-        {selected ? (
-          <div className={styles.selected}>
-            <div className={styles.selTitle}>
-              {TYPE_LABELS[selected.type]} <span className={styles.selLv}>Lv{selected.level}</span>
-            </div>
-            <div className={styles.selStat}>DMG {selected.damage}</div>
-            <div className={styles.selStat}>RNG {selected.range}</div>
-            <button
-              type="button"
-              className={styles.sell}
-              onClick={() => gameBus.emit(BUS_EVENTS.sellRequest)}
-            >
-              판매 +⛁{selected.sellRefund}
-            </button>
-          </div>
-        ) : (
-          <div className={styles.selectedEmpty}>유닛 탭 → 판매</div>
-        )}
       </div>
     </div>
   );

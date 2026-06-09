@@ -229,25 +229,32 @@ export class MainScene extends Phaser.Scene {
   }
 
   private drawPath(): void {
-    // 가로 lane (좌→우) + 위/아래 나무 plank 외곽선 (알키우기)
+    // 가로 lane (좌→우) + 4면 나무 펜스 (레퍼런스 톤)
     const head = PATH_POINTS[0]!;
     const tail = PATH_POINTS[PATH_POINTS.length - 1]!;
     const cy = head.y;
     const xLeft = head.x - 10;
     const xRight = tail.x + 10;
     const halfH = PATH_WIDTH / 2;
-    const planks = 10;
+    // 아레나 경계
+    const arenaTop = 160;
+    const arenaBot = 950;
+    const arenaLeft = 24;
+    const arenaRight = 516;
+    const plankColor = 0x8b5a2b;
+    const plankShadow = 0x4d2e10;
     // 그림자
     const sh = this.add.graphics();
     sh.setDepth(2);
-    sh.fillStyle(0x2c1d12, 0.2);
-    sh.fillRoundedRect(xLeft - 4, cy - halfH - 8, xRight - xLeft + 8, halfH * 2 + 16, 4);
-    // path 본체
+    sh.fillStyle(0x2c1d12, 0.18);
+    sh.fillRoundedRect(arenaLeft - 4, arenaTop - 4, arenaRight - arenaLeft + 8, arenaBot - arenaTop + 8, 6);
+
+    // dirt path 본체
     const lane = this.add.graphics();
     lane.setDepth(3);
     lane.fillStyle(PALETTE.path, 1);
     lane.fillRect(xLeft, cy - halfH, xRight - xLeft, halfH * 2);
-    // 어두운 점박이
+    // 점박이
     const speckle = this.add.graphics();
     speckle.setDepth(4);
     speckle.fillStyle(PALETTE.pathDark, 0.55);
@@ -256,34 +263,75 @@ export class MainScene extends Phaser.Scene {
       const y = cy + (Math.random() - 0.5) * halfH * 1.8;
       speckle.fillCircle(x, y, 1 + Math.random() * 1.5);
     }
-    // 위쪽 나무 plank
-    const top = this.add.graphics();
-    top.setDepth(5);
-    const plankW = (xRight - xLeft) / planks;
-    const plankH = 12;
-    for (let i = 0; i < planks; i += 1) {
-      const x = xLeft + i * plankW;
-      top.fillStyle(0x8b5a2b, 1);
-      top.lineStyle(1.5, 0x4d2e10, 1);
-      top.fillRect(x + 1, cy - halfH - plankH, plankW - 2, plankH);
-      top.strokeRect(x + 1, cy - halfH - plankH, plankW - 2, plankH);
-      // 못 자국
-      top.fillStyle(0x4d2e10, 1);
-      top.fillCircle(x + 4, cy - halfH - plankH + 3, 1);
-      top.fillCircle(x + plankW - 4, cy - halfH - plankH + 3, 1);
+
+    // 4면 펜스 — Top
+    const fence = this.add.graphics();
+    fence.setDepth(5);
+    const plankH = 14;
+    const plankWv = 14;
+    // 상단
+    const topPlanks = 12;
+    const topPlankW = (arenaRight - arenaLeft) / topPlanks;
+    for (let i = 0; i < topPlanks; i += 1) {
+      const x = arenaLeft + i * topPlankW;
+      fence.fillStyle(plankColor, 1);
+      fence.lineStyle(1.5, plankShadow, 1);
+      fence.fillRect(x + 1, arenaTop, topPlankW - 2, plankH);
+      fence.strokeRect(x + 1, arenaTop, topPlankW - 2, plankH);
+      fence.fillStyle(plankShadow, 1);
+      fence.fillCircle(x + 4, arenaTop + 4, 1);
+      fence.fillCircle(x + topPlankW - 4, arenaTop + 4, 1);
     }
-    // 아래쪽 나무 plank
-    const bot = this.add.graphics();
-    bot.setDepth(5);
-    for (let i = 0; i < planks; i += 1) {
-      const x = xLeft + i * plankW;
-      bot.fillStyle(0x8b5a2b, 1);
-      bot.lineStyle(1.5, 0x4d2e10, 1);
-      bot.fillRect(x + 1, cy + halfH, plankW - 2, plankH);
-      bot.strokeRect(x + 1, cy + halfH, plankW - 2, plankH);
-      bot.fillStyle(0x4d2e10, 1);
-      bot.fillCircle(x + 4, cy + halfH + 9, 1);
-      bot.fillCircle(x + plankW - 4, cy + halfH + 9, 1);
+    // 하단
+    for (let i = 0; i < topPlanks; i += 1) {
+      const x = arenaLeft + i * topPlankW;
+      fence.fillStyle(plankColor, 1);
+      fence.lineStyle(1.5, plankShadow, 1);
+      fence.fillRect(x + 1, arenaBot - plankH, topPlankW - 2, plankH);
+      fence.strokeRect(x + 1, arenaBot - plankH, topPlankW - 2, plankH);
+      fence.fillStyle(plankShadow, 1);
+      fence.fillCircle(x + 4, arenaBot - plankH + 4, 1);
+      fence.fillCircle(x + topPlankW - 4, arenaBot - plankH + 4, 1);
+    }
+    // 좌측 — path 들어오는 곳은 게이트 (gap)
+    const sidePlanks = 20;
+    const sidePlankH = (arenaBot - arenaTop) / sidePlanks;
+    for (let i = 0; i < sidePlanks; i += 1) {
+      const y = arenaTop + i * sidePlankH;
+      // path 통과 영역 스킵 (cy - halfH ~ cy + halfH 사이 게이트)
+      if (y + sidePlankH > cy - halfH - 4 && y < cy + halfH + 4) continue;
+      fence.fillStyle(plankColor, 1);
+      fence.lineStyle(1.5, plankShadow, 1);
+      fence.fillRect(arenaLeft, y + 1, plankWv, sidePlankH - 2);
+      fence.strokeRect(arenaLeft, y + 1, plankWv, sidePlankH - 2);
+      fence.fillStyle(plankShadow, 1);
+      fence.fillCircle(arenaLeft + 4, y + 4, 1);
+      fence.fillCircle(arenaLeft + 4, y + sidePlankH - 4, 1);
+    }
+    // 우측 — 알/성 영역도 게이트
+    for (let i = 0; i < sidePlanks; i += 1) {
+      const y = arenaTop + i * sidePlankH;
+      if (y + sidePlankH > cy - halfH - 4 && y < cy + halfH + 4) continue;
+      fence.fillStyle(plankColor, 1);
+      fence.lineStyle(1.5, plankShadow, 1);
+      fence.fillRect(arenaRight - plankWv, y + 1, plankWv, sidePlankH - 2);
+      fence.strokeRect(arenaRight - plankWv, y + 1, plankWv, sidePlankH - 2);
+      fence.fillStyle(plankShadow, 1);
+      fence.fillCircle(arenaRight - plankWv + 4, y + 4, 1);
+      fence.fillCircle(arenaRight - plankWv + 4, y + sidePlankH - 4, 1);
+    }
+    // 모서리 기둥 (좀 더 두꺼움)
+    const cornerPosts: Array<[number, number]> = [
+      [arenaLeft - 4, arenaTop - 4],
+      [arenaRight - plankWv - 4, arenaTop - 4],
+      [arenaLeft - 4, arenaBot - plankH - 4],
+      [arenaRight - plankWv - 4, arenaBot - plankH - 4],
+    ];
+    for (const [px, py] of cornerPosts) {
+      fence.fillStyle(plankShadow, 1);
+      fence.lineStyle(2, 0x2c1d12, 1);
+      fence.fillRect(px, py, plankWv + 8, plankH + 8);
+      fence.strokeRect(px, py, plankWv + 8, plankH + 8);
     }
   }
 
@@ -774,12 +822,10 @@ export class MainScene extends Phaser.Scene {
     const color = unit.profile.color;
     unit.triggerSwing(target.x, target.y);
     if (unit.unitType === 'melee') {
-      // 데미지 — 타겟 위치 기준 AOE (몹 있는 곳에서 휘두른 효과)
       this.applyDamage(target.x, target.y, unit.profile.damage, unit.profile.splashRadius ?? 80, color);
-      // 잔상 = 유닛에서 타겟으로 향하는 라인 FX
       this.batSwingFx(unit.x, unit.y, target.x, target.y, color);
-      // 임팩트 = 타겟 위치 원
       this.swingFx(target.x, target.y, unit.profile.splashRadius ?? 80, color);
+      this.spawnDamageNumber(target.x, target.y - 18, unit.profile.damage, color);
       return;
     }
     // 발사체 (ranged/magic/bomb)
@@ -878,10 +924,35 @@ export class MainScene extends Phaser.Scene {
     for (const m of hit) {
       const dead = m.takeDamage(amount);
       if (dead) this.killMob(m);
+      this.spawnDamageNumber(m.x, m.y - 20, amount, color);
     }
     if (hit.length > 0) {
       this.splashFx(cx, cy, splash, color);
     }
+  }
+
+  private spawnDamageNumber(x: number, y: number, amount: number, color: number): void {
+    const fmt = amount >= 1000 ? `${(amount / 1000).toFixed(1)}K` : String(Math.round(amount));
+    const colorStr = '#' + color.toString(16).padStart(6, '0');
+    const t = this.add.text(x + (Math.random() - 0.5) * 10, y, fmt, {
+      fontFamily: 'Pretendard, system-ui, sans-serif',
+      fontSize: amount >= 100 ? '20px' : '16px',
+      fontStyle: 'bold',
+      color: colorStr,
+      stroke: '#2c1d12',
+      strokeThickness: 3,
+    });
+    t.setOrigin(0.5);
+    t.setDepth(40);
+    this.tweens.add({
+      targets: t,
+      y: y - 35,
+      alpha: 0,
+      scale: 1.2,
+      duration: 600,
+      ease: 'Cubic.easeOut',
+      onComplete: () => t.destroy(),
+    });
   }
 
   private swingFx(cx: number, cy: number, radius: number, color: number): void {
