@@ -4,11 +4,18 @@ import { profileFor, sellRefund, type UnitLevel, type UnitProfile, type UnitType
 // Twemoji 스프라이트 사용. 절차적 Graphics 폐기.
 let nextId = 1;
 
-const TYPE_TO_EMOJI: Record<UnitType, string> = {
-  melee: 'emoji-bat',       // 🏏 야구 빠따
-  ranged: 'emoji-bow',      // 🏹 활
-  magic: 'emoji-crystal',   // 🔮 크리스탈 (마법)
-  bomb: 'emoji-bomb',       // 💣 폭탄
+const TYPE_TO_WEAPON: Record<UnitType, string> = {
+  melee: 'emoji-bat',
+  ranged: 'emoji-bow',
+  magic: 'emoji-crystal',
+  bomb: 'emoji-bomb',
+};
+
+const TYPE_TO_CHARACTER: Record<UnitType, string> = {
+  melee: 'emoji-boy',       // 👦 빠따 든 소년
+  ranged: 'emoji-elf',      // 🧝 엘프 (활)
+  magic: 'emoji-knight',    // 🧙 마법사
+  bomb: 'emoji-ninja',      // 🥷 닌자 (폭탄)
 };
 
 const TYPE_TO_FRAME_COLOR: Record<UnitType, number> = {
@@ -61,13 +68,13 @@ export class Unit extends Phaser.GameObjects.Container {
     this.add(this.frameG);
     this.drawFrame();
 
-    // 캐릭터 이모지 (소년)
-    this.boyImg = scene.add.image(-3, -4, 'emoji-boy');
-    this.boyImg.setDisplaySize(40, 40);
+    // 타입별 캐릭터 이모지
+    this.boyImg = scene.add.image(-3, -4, TYPE_TO_CHARACTER[type]);
+    this.boyImg.setDisplaySize(44, 44);
     this.add(this.boyImg);
 
-    // 무기 이모지
-    this.weaponImg = scene.add.image(14, -4, TYPE_TO_EMOJI[type]);
+    // 타입별 무기 이모지
+    this.weaponImg = scene.add.image(14, -4, TYPE_TO_WEAPON[type]);
     this.weaponImg.setDisplaySize(28, 28);
     this.weaponImg.setOrigin(0.3, 0.7);
     this.add(this.weaponImg);
@@ -84,8 +91,9 @@ export class Unit extends Phaser.GameObjects.Container {
     this.levelTag.setOrigin(0.5);
     this.add(this.levelTag);
 
-    this.setSize(56, 64);
-    this.setInteractive(new Phaser.Geom.Rectangle(-28, -40, 56, 64), Phaser.Geom.Rectangle.Contains);
+    // 큰 hit 영역 (터치 드래그 편함)
+    this.setSize(72, 80);
+    this.setInteractive(new Phaser.Geom.Rectangle(-36, -48, 72, 80), Phaser.Geom.Rectangle.Contains);
     scene.input.setDraggable(this);
 
     scene.add.existing(this);
