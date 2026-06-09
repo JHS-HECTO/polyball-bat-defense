@@ -1,16 +1,19 @@
 import Phaser from 'phaser';
 
+// 111percent 알키우기 톤: 작은 도트풍 몹. 단색 + 외곽선.
 export type MobKind = 'normal' | 'boss';
 
-const MOB_PALETTES: Record<string, { body: number; outline: number; eye: number }> = {
-  slime: { body: 0x6cbe5b, outline: 0x3e7f2f, eye: 0x1a3d0e },
-  bat: { body: 0x5d4a8b, outline: 0x342555, eye: 0xffffff },
-  skull: { body: 0xe8e1d4, outline: 0x6e6457, eye: 0x2c1d12 },
-  orc: { body: 0xa5d161, outline: 0x4c7a23, eye: 0x271b08 },
-  ghost: { body: 0xb6cfeb, outline: 0x506a8a, eye: 0x1c2e44 },
+type MobStyle = { body: number; outline: number; eye: number };
+
+const MOB_PALETTES: Record<string, MobStyle> = {
+  skull: { body: 0xfffaf2, outline: 0x2c1d12, eye: 0x2c1d12 },     // 흰 해골
+  orc: { body: 0x5bb95b, outline: 0x2c4a1e, eye: 0x000000 },       // 녹색 오크
+  slime: { body: 0x4aa3df, outline: 0x1a4d6e, eye: 0x0a2030 },     // 파란 슬라임
+  bat: { body: 0x5d4a8b, outline: 0x2a1850, eye: 0xffffff },       // 보라 박쥐
+  ghost: { body: 0xfceedb, outline: 0x6e6457, eye: 0x2c1d12 },     // 크림 유령
 };
 
-const MOB_VARIANTS = ['slime', 'bat', 'skull', 'orc', 'ghost'] as const;
+const MOB_VARIANTS = ['skull', 'orc', 'slime', 'bat', 'ghost'] as const;
 
 export class Mob extends Phaser.GameObjects.Container {
   kind: MobKind;
@@ -18,13 +21,11 @@ export class Mob extends Phaser.GameObjects.Container {
   hpMax: number;
   speed: number;
   goldReward: number;
-
-  // 경로 진행도 0~1
   pathT: number = 0;
 
   private bodyG: Phaser.GameObjects.Graphics;
   private hpBar: Phaser.GameObjects.Graphics;
-  private shadow: Phaser.GameObjects.Image;
+  private shadowG: Phaser.GameObjects.Graphics;
   private variantKey: string;
   private bounceTimeline: number = 0;
   private hitFlash: number = 0;
@@ -44,12 +45,11 @@ export class Mob extends Phaser.GameObjects.Container {
     this.variantKey =
       options.kind === 'boss'
         ? 'boss'
-        : MOB_VARIANTS[Math.floor(Math.random() * MOB_VARIANTS.length)] ?? 'slime';
+        : MOB_VARIANTS[Math.floor(Math.random() * MOB_VARIANTS.length)] ?? 'skull';
 
-    this.shadow = scene.add.image(0, this.kind === 'boss' ? 32 : 20, 'shadow');
-    this.shadow.setAlpha(0.4);
-    if (this.kind === 'boss') this.shadow.setScale(1.4);
-    this.add(this.shadow);
+    this.shadowG = scene.add.graphics();
+    this.add(this.shadowG);
+    this.drawShadow();
 
     this.bodyG = scene.add.graphics();
     this.add(this.bodyG);
@@ -63,110 +63,173 @@ export class Mob extends Phaser.GameObjects.Container {
     scene.add.existing(this);
   }
 
+  private drawShadow(): void {
+    const g = this.shadowG;
+    g.clear();
+    g.fillStyle(0x2c1d12, 0.35);
+    if (this.kind === 'boss') g.fillEllipse(0, 22, 50, 12);
+    else g.fillEllipse(0, 10, 18, 6);
+  }
+
   private drawBody(): void {
     this.bodyG.clear();
-    if (this.kind === 'boss') {
-      this.drawBoss();
-    } else {
-      this.drawNormal();
-    }
+    if (this.kind === 'boss') this.drawBoss();
+    else this.drawNormal();
   }
 
   private drawNormal(): void {
-    const p = MOB_PALETTES[this.variantKey] ?? MOB_PALETTES.slime!;
+    const p = MOB_PALETTES[this.variantKey] ?? MOB_PALETTES.skull!;
     const flash = this.hitFlash;
-    const body = flash > 0 ? this.lighten(p.body, 0.5) : p.body;
+    const body = flash > 0 ? 0xffffff : p.body;
+    const bob = Math.sin(this.bounceTimeline * 0.012) * 1.2;
+    const g = this.bodyG;
 
-    const sway = Math.sin(this.bounceTimeline * 0.012) * 1.4;
-
-    this.bodyG.fillStyle(body, 1);
-    this.bodyG.lineStyle(3, p.outline, 1);
-
-    if (this.variantKey === 'slime') {
-      this.bodyG.fillRoundedRect(-22, -18 + sway, 44, 36, 18);
-      this.bodyG.strokeRoundedRect(-22, -18 + sway, 44, 36, 18);
-    } else if (this.variantKey === 'skull') {
-      this.bodyG.fillCircle(0, -2 + sway, 20);
-      this.bodyG.strokeCircle(0, -2 + sway, 20);
-      this.bodyG.fillStyle(p.outline, 1);
-      this.bodyG.fillRect(-8, 6 + sway, 6, 8);
-      this.bodyG.fillRect(2, 6 + sway, 6, 8);
-    } else if (this.variantKey === 'bat') {
-      this.bodyG.fillEllipse(0, sway, 32, 30);
-      this.bodyG.strokeEllipse(0, sway, 32, 30);
-      this.bodyG.fillStyle(p.outline, 1);
-      this.bodyG.fillTriangle(-14, -2 + sway, -28, -10 + sway, -22, 6 + sway);
-      this.bodyG.fillTriangle(14, -2 + sway, 28, -10 + sway, 22, 6 + sway);
+    if (this.variantKey === 'skull') {
+      // 작은 해골 캐릭 (알키우기 스타일)
+      // 머리
+      g.fillStyle(body, 1);
+      g.lineStyle(1.5, p.outline, 1);
+      g.fillCircle(0, -4 + bob, 8);
+      g.strokeCircle(0, -4 + bob, 8);
+      // 눈
+      g.fillStyle(p.eye, 1);
+      g.fillRect(-3, -6 + bob, 2, 2);
+      g.fillRect(1, -6 + bob, 2, 2);
+      // 이빨
+      g.lineStyle(1, p.outline, 1);
+      g.beginPath();
+      g.moveTo(-3, 0 + bob); g.lineTo(-3, 2 + bob);
+      g.moveTo(0, 0 + bob); g.lineTo(0, 2 + bob);
+      g.moveTo(3, 0 + bob); g.lineTo(3, 2 + bob);
+      g.strokePath();
+      // 몸 (작은 막대)
+      g.fillStyle(body, 1);
+      g.lineStyle(1.5, p.outline, 1);
+      g.fillRect(-4, 4 + bob, 8, 6);
+      g.strokeRect(-4, 4 + bob, 8, 6);
     } else if (this.variantKey === 'orc') {
-      this.bodyG.fillRoundedRect(-20, -20 + sway, 40, 38, 8);
-      this.bodyG.strokeRoundedRect(-20, -20 + sway, 40, 38, 8);
-      this.bodyG.fillStyle(0xffffff, 1);
-      this.bodyG.fillTriangle(-6, 6 + sway, -2, 12 + sway, -8, 12 + sway);
-      this.bodyG.fillTriangle(6, 6 + sway, 2, 12 + sway, 8, 12 + sway);
+      // 녹색 오크
+      g.fillStyle(body, 1);
+      g.lineStyle(1.5, p.outline, 1);
+      g.fillRect(-7, -8 + bob, 14, 16);
+      g.strokeRect(-7, -8 + bob, 14, 16);
+      // 눈
+      g.fillStyle(p.eye, 1);
+      g.fillRect(-4, -5 + bob, 2, 2);
+      g.fillRect(2, -5 + bob, 2, 2);
+      // 송곳니
+      g.fillStyle(0xfffaf2, 1);
+      g.fillTriangle(-3, 1 + bob, -1, 4 + bob, -4, 4 + bob);
+      g.fillTriangle(3, 1 + bob, 1, 4 + bob, 4, 4 + bob);
+    } else if (this.variantKey === 'slime') {
+      // 슬라임
+      g.fillStyle(body, 1);
+      g.lineStyle(1.5, p.outline, 1);
+      g.fillRoundedRect(-9, -6 + bob, 18, 14, 9);
+      g.strokeRoundedRect(-9, -6 + bob, 18, 14, 9);
+      // 눈
+      g.fillStyle(0xffffff, 1);
+      g.fillCircle(-3, -1 + bob, 2);
+      g.fillCircle(3, -1 + bob, 2);
+      g.fillStyle(p.eye, 1);
+      g.fillCircle(-3, -1 + bob, 1);
+      g.fillCircle(3, -1 + bob, 1);
+    } else if (this.variantKey === 'bat') {
+      // 박쥐
+      g.fillStyle(body, 1);
+      g.lineStyle(1.5, p.outline, 1);
+      g.fillCircle(0, 0 + bob, 6);
+      g.strokeCircle(0, 0 + bob, 6);
+      // 날개
+      g.fillStyle(p.outline, 1);
+      g.fillTriangle(-6, -2 + bob, -14, -6 + bob, -10, 4 + bob);
+      g.fillTriangle(6, -2 + bob, 14, -6 + bob, 10, 4 + bob);
+      // 눈
+      g.fillStyle(p.eye, 1);
+      g.fillCircle(-2, -1 + bob, 1.2);
+      g.fillCircle(2, -1 + bob, 1.2);
     } else {
-      this.bodyG.fillRoundedRect(-18, -18 + sway, 36, 32, 14);
-      this.bodyG.strokeRoundedRect(-18, -18 + sway, 36, 32, 14);
-    }
-
-    this.bodyG.fillStyle(p.eye, 1);
-    this.bodyG.fillCircle(-7, -4 + sway, 3);
-    this.bodyG.fillCircle(7, -4 + sway, 3);
-    if (flash <= 0) {
-      this.bodyG.fillStyle(0xffffff, 1);
-      this.bodyG.fillCircle(-6, -5 + sway, 1.2);
-      this.bodyG.fillCircle(8, -5 + sway, 1.2);
+      // ghost
+      g.fillStyle(body, 1);
+      g.lineStyle(1.5, p.outline, 1);
+      // 윗부분 둥글
+      g.beginPath();
+      g.arc(0, -1 + bob, 8, Math.PI, 0, false);
+      g.lineTo(8, 8 + bob);
+      // 아래 물결 (단순화)
+      g.lineTo(5, 6 + bob);
+      g.lineTo(2, 8 + bob);
+      g.lineTo(-2, 6 + bob);
+      g.lineTo(-5, 8 + bob);
+      g.lineTo(-8, 6 + bob);
+      g.closePath();
+      g.fillPath();
+      g.strokePath();
+      // 눈
+      g.fillStyle(p.eye, 1);
+      g.fillCircle(-3, -2 + bob, 1.4);
+      g.fillCircle(3, -2 + bob, 1.4);
     }
   }
 
   private drawBoss(): void {
+    // 빨간 드래곤 보스 (알키우기 참고)
     const flash = this.hitFlash;
-    const body = flash > 0 ? 0xff8a8a : 0x8e3e3e;
-    const outline = 0x4d1a1a;
+    const body = flash > 0 ? 0xff8a8a : 0xe25555;
+    const outline = 0x6f2222;
+    const bob = Math.sin(this.bounceTimeline * 0.008) * 1.5;
+    const g = this.bodyG;
 
-    const sway = Math.sin(this.bounceTimeline * 0.008) * 2;
+    // 몸통 (큰 둥근 사각)
+    g.fillStyle(body, 1);
+    g.lineStyle(2, outline, 1);
+    g.fillRoundedRect(-20, -8 + bob, 40, 26, 8);
+    g.strokeRoundedRect(-20, -8 + bob, 40, 26, 8);
 
-    this.bodyG.fillStyle(body, 1);
-    this.bodyG.lineStyle(4, outline, 1);
-    this.bodyG.fillCircle(0, sway, 44);
-    this.bodyG.strokeCircle(0, sway, 44);
+    // 머리 (몸통보다 약간 위로)
+    g.fillStyle(body, 1);
+    g.fillRoundedRect(-12, -22 + bob, 24, 16, 6);
+    g.strokeRoundedRect(-12, -22 + bob, 24, 16, 6);
 
     // 뿔
-    this.bodyG.fillStyle(outline, 1);
-    this.bodyG.fillTriangle(-20, -32 + sway, -10, -54 + sway, -2, -34 + sway);
-    this.bodyG.fillTriangle(20, -32 + sway, 10, -54 + sway, 2, -34 + sway);
+    g.fillStyle(outline, 1);
+    g.fillTriangle(-10, -20 + bob, -6, -30 + bob, -2, -20 + bob);
+    g.fillTriangle(10, -20 + bob, 6, -30 + bob, 2, -20 + bob);
 
-    // 눈
-    this.bodyG.fillStyle(0xffd35e, 1);
-    this.bodyG.fillCircle(-14, -4 + sway, 7);
-    this.bodyG.fillCircle(14, -4 + sway, 7);
+    // 눈 (노란 + 검정 동공)
+    g.fillStyle(0xffd35e, 1);
+    g.fillCircle(-5, -14 + bob, 2.8);
+    g.fillCircle(5, -14 + bob, 2.8);
     if (flash <= 0) {
-      this.bodyG.fillStyle(0x2c1d12, 1);
-      this.bodyG.fillCircle(-14, -4 + sway, 3);
-      this.bodyG.fillCircle(14, -4 + sway, 3);
+      g.fillStyle(0x2c1d12, 1);
+      g.fillCircle(-5, -14 + bob, 1.4);
+      g.fillCircle(5, -14 + bob, 1.4);
     }
 
-    // 입
-    this.bodyG.lineStyle(3, outline, 1);
-    this.bodyG.beginPath();
-    this.bodyG.arc(0, 14 + sway, 12, 0.2, Math.PI - 0.2, false);
-    this.bodyG.strokePath();
-    this.bodyG.fillStyle(0xffffff, 1);
-    this.bodyG.fillTriangle(-8, 14 + sway, -4, 26 + sway, -10, 22 + sway);
-    this.bodyG.fillTriangle(8, 14 + sway, 4, 26 + sway, 10, 22 + sway);
+    // 입 (이빨)
+    g.fillStyle(0xfffaf2, 1);
+    g.fillTriangle(-3, -10 + bob, -1, -6 + bob, -5, -6 + bob);
+    g.fillTriangle(3, -10 + bob, 1, -6 + bob, 5, -6 + bob);
+
+    // 등 가시
+    g.fillStyle(outline, 1);
+    g.fillTriangle(-12, -8 + bob, -10, -14 + bob, -8, -8 + bob);
+    g.fillTriangle(-4, -8 + bob, -2, -16 + bob, 0, -8 + bob);
+    g.fillTriangle(4, -8 + bob, 6, -14 + bob, 8, -8 + bob);
   }
 
   private drawHpBar(): void {
     this.hpBar.clear();
-    const w = this.kind === 'boss' ? 80 : 38;
-    const h = this.kind === 'boss' ? 8 : 5;
-    const y = this.kind === 'boss' ? -64 : -32;
+    const w = this.kind === 'boss' ? 50 : 22;
+    const h = this.kind === 'boss' ? 5 : 3;
+    const y = this.kind === 'boss' ? -34 : -16;
     const ratio = Math.max(0, this.hp / this.hpMax);
-    this.hpBar.fillStyle(0x2c1d12, 0.45);
-    this.hpBar.fillRoundedRect(-w / 2 - 1, y - 1, w + 2, h + 2, 3);
+    this.hpBar.fillStyle(0x2c1d12, 0.7);
+    this.hpBar.fillRect(-w / 2 - 1, y - 1, w + 2, h + 2);
     this.hpBar.fillStyle(0x5a2424, 1);
-    this.hpBar.fillRoundedRect(-w / 2, y, w, h, 2);
-    this.hpBar.fillStyle(this.kind === 'boss' ? 0xffb347 : 0x6cd073, 1);
-    this.hpBar.fillRoundedRect(-w / 2, y, w * ratio, h, 2);
+    this.hpBar.fillRect(-w / 2, y, w, h);
+    this.hpBar.fillStyle(this.kind === 'boss' ? 0xffd35e : 0x6cd073, 1);
+    this.hpBar.fillRect(-w / 2, y, w * ratio, h);
   }
 
   takeDamage(amount: number): boolean {
@@ -177,20 +240,11 @@ export class Mob extends Phaser.GameObjects.Container {
     return this.hp <= 0;
   }
 
-  private lighten(c: number, p: number): number {
-    const r = Math.min(255, ((c >> 16) & 0xff) + Math.round(255 * p));
-    const g = Math.min(255, ((c >> 8) & 0xff) + Math.round(255 * p));
-    const b = Math.min(255, (c & 0xff) + Math.round(255 * p));
-    return (r << 16) | (g << 8) | b;
-  }
-
   tickAnim(deltaMs: number): void {
     this.bounceTimeline += deltaMs;
     if (this.hitFlash > 0) {
       this.hitFlash -= deltaMs;
-      if (this.hitFlash <= 0) {
-        this.hitFlash = 0;
-      }
+      if (this.hitFlash <= 0) this.hitFlash = 0;
     }
     this.drawBody();
   }
