@@ -1,8 +1,47 @@
 import Phaser from 'phaser';
-import { GAME_HEIGHT, GAME_WIDTH, PALETTE, WORLD } from '../config';
+import { GAME_HEIGHT, GAME_WIDTH, PALETTE, STAGE, STATS, SCORE, WORLD } from '../config';
+import { Character } from '../entities/Character';
+import { Mob } from '../entities/Mob';
+import { gameBus, BUS_EVENTS, type UpgradeKind } from '../gameBus';
+import {
+  applyUpgrade,
+  computeBossHp,
+  computeMobGold,
+  computeMobHp,
+  computeMobSpeed,
+  initialStats,
+  isBossStage,
+  mobsThisStage,
+  snapshotState,
+  type CharacterStats,
+} from '../state';
 
-// 게임플레이는 4단계에서. 지금은 배경 + 캐릭터 placeholder.
 export class MainScene extends Phaser.Scene {
+  private character!: Character;
+  private mobs: Mob[] = [];
+  private goldOrbs: Phaser.GameObjects.Container[] = [];
+
+  // 게임 상태
+  private hp = STATS.baseHp;
+  private hpMax = STATS.baseHp;
+  private gold = 0;
+  private score = 0;
+  private stage = 1;
+  private mobsToSpawn = 0;
+  private mobsSpawnedThisStage = 0;
+  private lastSpawnAt = 0;
+  private lastAttackAt = 0;
+  private stats: CharacterStats = initialStats();
+  private isGameOver = false;
+  private isInterStage = false;
+
+  // 정적 그래픽 (1회 그림)
+  private hudFrame!: Phaser.GameObjects.Graphics;
+
+  // 정리용 핸들러 ref
+  private onUpgradeRequest = (kind: UpgradeKind) => this.tryUpgrade(kind);
+  private onRestart = () => this.restart();
+
   constructor() {
     super({ key: 'Main' });
   }
@@ -10,143 +49,355 @@ export class MainScene extends Phaser.Scene {
   create(): void {
     this.drawBackground();
     this.drawLane();
-    this.drawCharacterPlaceholder();
-    this.drawDebugLabel();
+
+    this.character = new Character(this, WORLD.characterX, WORLD.characterY);
+
+    // 사거리는 캐릭터 옆에 있고 차선은 위(laneCenterY). 캐릭터를 차선과 가깝게.
+    this.character.setPosition(WORLD.characterX, WORLD.laneCenterY + WORLD.laneHalfH + 60);
+    this.character.drawRange(this.stats.range);
+
+    this.hudFrame = this.add.graphics();
+    this.hudFrame.setDepth(50);
+    this.drawHudFrame();
+
+    gameBus.on(BUS_EVENTS.upgradeRequest, this.onUpgradeRequest);
+    gameBus.on(BUS_EVENTS.restart, this.onRestart);
+
+    this.events.on(Phaser.Scenes.Events.SHUTDOWN, () => {
+      gameBus.off(BUS_EVENTS.upgradeRequest, this.onUpgradeRequest);
+      gameBus.off(BUS_EVENTS.restart, this.onRestart);
+    });
+
+    this.startStage(1);
+    this.publishState();
+  }
+
+  update(_time: number, delta: number): void {
+    if (this.isGameOver) return;
+
+    // 캐릭터 / 몹 애니메이션
+    this.character.tickAnim(delta);
+    for (const m of this.mobs) m.tickAnim(delta);
+
+    // 골드 orb 부유 애니메이션
+    for (const o of this.goldOrbs) {
+      o.y -= delta * 0.04;
+      const data = o.getData('life') as number | undefined;
+      const nextLife = (data ?? 600) - delta;
+      o.setData('life', nextLife);
+      o.setAlpha(Math.max(0, Math.min(1, nextLife / 600)));
+      if (nextLife <= 0) {
+        o.destroy();
+      }
+    }
+    this.goldOrbs = this.goldOrbs.filter((o) => o.active);
+
+    // 몹 스폰
+    if (!this.isInterStage && this.mobsToSpawn > 0) {
+      this.lastSpawnAt += delta;
+      const interval = isBossStage(this.stage) ? 600 : STAGE.mobSpawnInterval;
+      if (this.lastSpawnAt >= interval) {
+        this.spawnMob();
+        this.lastSpawnAt = 0;
+      }
+    }
+
+    // 자동 공격
+    this.lastAttackAt += delta;
+    if (this.lastAttackAt >= this.stats.attackCooldown) {
+      const hit = this.tryAttack();
+      if (hit) this.lastAttackAt = 0;
+    }
+
+    // 몹 진행 / 도달 처리
+    for (let i = this.mobs.length - 1; i >= 0; i -= 1) {
+      const m = this.mobs[i];
+      if (!m) continue;
+      if (m.x > GAME_WIDTH + 60) {
+        // 도달 → 라이프 감소
+        this.takeLifeHit();
+        m.destroy();
+        this.mobs.splice(i, 1);
+      }
+    }
+
+    // 스테이지 종료 체크
+    if (
+      !this.isInterStage &&
+      this.mobsToSpawn === 0 &&
+      this.mobs.length === 0 &&
+      !this.isGameOver
+    ) {
+      this.completeStage();
+    }
   }
 
   private drawBackground(): void {
-    // 풀밭 타일링
     const tileSize = 64;
     for (let y = 0; y < GAME_HEIGHT; y += tileSize) {
       for (let x = 0; x < GAME_WIDTH; x += tileSize) {
-        this.add.image(x, y, 'tile-grass').setOrigin(0, 0);
+        this.add.image(x, y, 'tile-grass').setOrigin(0, 0).setDepth(0);
       }
     }
-    // 상하단 패딩 영역 (HUD / 업그레이드 패널 자리)
-    this.add
-      .rectangle(0, 0, GAME_WIDTH, WORLD.topPad, PALETTE.surfaceCard, 0.92)
-      .setOrigin(0, 0);
-    this.add
-      .rectangle(0, GAME_HEIGHT - WORLD.bottomPad, GAME_WIDTH, WORLD.bottomPad, PALETTE.surfacePanel, 0.95)
-      .setOrigin(0, 0);
   }
 
   private drawLane(): void {
-    // 길 — 횡 단일 레인 (몹이 좌→우)
-    const laneY = (WORLD.laneTop + WORLD.laneBottom) / 2;
-    const laneH = 180;
+    const cy = WORLD.laneCenterY;
+    const h = WORLD.laneHalfH * 2;
     const tileSize = 64;
     for (let x = 0; x < GAME_WIDTH; x += tileSize) {
-      for (let y = laneY - laneH / 2; y < laneY + laneH / 2; y += tileSize) {
-        this.add.image(x, y, 'tile-path').setOrigin(0, 0);
+      for (let y = cy - h / 2; y < cy + h / 2; y += tileSize) {
+        this.add.image(x, y, 'tile-path').setOrigin(0, 0).setDepth(1);
       }
     }
-    // 길 경계선 (살짝 어둡게)
-    this.add
-      .rectangle(0, laneY - laneH / 2 - 2, GAME_WIDTH, 4, 0x9a7a52, 0.4)
-      .setOrigin(0, 0);
-    this.add
-      .rectangle(0, laneY + laneH / 2 - 2, GAME_WIDTH, 4, 0x9a7a52, 0.4)
-      .setOrigin(0, 0);
+    // 경계
+    this.add.rectangle(0, cy - WORLD.laneHalfH - 2, GAME_WIDTH, 4, 0x9a7a52, 0.5).setOrigin(0, 0).setDepth(2);
+    this.add.rectangle(0, cy + WORLD.laneHalfH - 2, GAME_WIDTH, 4, 0x9a7a52, 0.5).setOrigin(0, 0).setDepth(2);
+
+    // 시작 / 종료 게이트
+    const startGate = this.add.graphics();
+    startGate.fillStyle(0x2c1d12, 0.18);
+    startGate.fillRect(0, cy - WORLD.laneHalfH, 10, WORLD.laneHalfH * 2);
+    startGate.setDepth(2);
+    const endGate = this.add.graphics();
+    endGate.fillStyle(PALETTE.hp, 0.32);
+    endGate.fillRect(GAME_WIDTH - 10, cy - WORLD.laneHalfH, 10, WORLD.laneHalfH * 2);
+    endGate.setDepth(2);
   }
 
-  private drawCharacterPlaceholder(): void {
-    const x = WORLD.characterX;
-    const y = WORLD.characterY;
-
-    // 그림자
-    this.add.image(x, y + 40, 'shadow').setAlpha(0.55);
-
-    // 몸통 (둥근 직사각)
-    const body = this.add.graphics();
-    body.fillStyle(0x4b8de8, 1); // 유니폼 블루 (야구 분위기)
-    body.fillRoundedRect(x - 26, y - 24, 52, 48, 14);
-    body.lineStyle(3, 0x2b5fa8, 1);
-    body.strokeRoundedRect(x - 26, y - 24, 52, 48, 14);
-
-    // 머리
-    const head = this.add.graphics();
-    head.fillStyle(0xfdd9b8, 1); // 살색
-    head.fillCircle(x, y - 42, 18);
-    head.lineStyle(3, 0xc9a07a, 1);
-    head.strokeCircle(x, y - 42, 18);
-
-    // 야구 모자
-    const cap = this.add.graphics();
-    cap.fillStyle(0xe25555, 1);
-    cap.fillEllipse(x, y - 54, 38, 18);
-    cap.fillRect(x - 19, y - 54, 38, 8);
-    cap.fillStyle(0xa53939, 1);
-    cap.fillRect(x + 6, y - 50, 22, 4); // 챙
-
-    // 빠따 (대각선)
-    const bat = this.add.graphics();
-    bat.fillStyle(0x8b5a2b, 1);
-    bat.lineStyle(2, 0x5b3a1c, 1);
-    // 손잡이~머리 방향: 캐릭터 우측 위로 들고있는 모양
-    const batLen = 70;
-    const angle = -0.35; // 약간 위쪽
-    const sx = x + 14;
-    const sy = y - 6;
-    const ex = sx + Math.cos(angle) * batLen;
-    const ey = sy + Math.sin(angle) * batLen;
-    // 굵은 선 형태
-    const dx = ex - sx;
-    const dy = ey - sy;
-    const len = Math.hypot(dx, dy);
-    const ux = dx / len;
-    const uy = dy / len;
-    const perpX = -uy;
-    const perpY = ux;
-    const w1 = 5; // 손잡이 굵기
-    const w2 = 11; // 끝 굵기
-    bat.fillPoints(
-      [
-        { x: sx + perpX * w1, y: sy + perpY * w1 },
-        { x: sx - perpX * w1, y: sy - perpY * w1 },
-        { x: ex - perpX * w2, y: ey - perpY * w2 },
-        { x: ex + perpX * w2, y: ey + perpY * w2 },
-      ],
-      true,
-    );
-    bat.strokePoints(
-      [
-        { x: sx + perpX * w1, y: sy + perpY * w1 },
-        { x: sx - perpX * w1, y: sy - perpY * w1 },
-        { x: ex - perpX * w2, y: ey - perpY * w2 },
-        { x: ex + perpX * w2, y: ey + perpY * w2 },
-        { x: sx + perpX * w1, y: sy + perpY * w1 },
-      ],
-      true,
-    );
-
-    // 사거리 표시 (반투명 원)
-    const range = this.add.graphics();
-    range.lineStyle(2, PALETTE.primary1, 0.45);
-    range.strokeCircle(x, y, 140);
-    range.fillStyle(PALETTE.primary1, 0.06);
-    range.fillCircle(x, y, 140);
+  private drawHudFrame(): void {
+    // 상단 / 하단 패널 배경만 — 텍스트는 React 오버레이가 담당
+    this.hudFrame.clear();
+    this.hudFrame.fillStyle(PALETTE.surfaceCard, 0.94);
+    this.hudFrame.fillRect(0, 0, GAME_WIDTH, WORLD.topPad);
+    this.hudFrame.fillStyle(PALETTE.surfacePanel, 0.96);
+    this.hudFrame.fillRect(0, GAME_HEIGHT - WORLD.bottomPad, GAME_WIDTH, WORLD.bottomPad);
   }
 
-  private drawDebugLabel(): void {
-    const t = this.add.text(GAME_WIDTH / 2, 36, '3단계: Phaser 씬 마운트 OK', {
+  private startStage(stage: number): void {
+    this.stage = stage;
+    this.mobsToSpawn = mobsThisStage(stage);
+    this.mobsSpawnedThisStage = 0;
+    this.lastSpawnAt = STAGE.mobSpawnInterval; // 즉시 첫 스폰
+    this.isInterStage = false;
+    const text = isBossStage(stage) ? `보스 등장! 스테이지 ${stage}` : `스테이지 ${stage}`;
+    this.toast(text, isBossStage(stage) ? 'warn' : 'info', 1400);
+    this.publishState();
+  }
+
+  private completeStage(): void {
+    if (this.isGameOver) return;
+    this.isInterStage = true;
+    this.score += SCORE.perStageClear;
+    this.toast(`스테이지 ${this.stage} 클리어!`, 'success', 1200);
+    this.publishState();
+    this.time.delayedCall(STAGE.interStageDelay, () => {
+      if (!this.isGameOver) this.startStage(this.stage + 1);
+    });
+  }
+
+  private spawnMob(): void {
+    const boss = isBossStage(this.stage);
+    const hp = boss ? computeBossHp(this.stage) : computeMobHp(this.stage);
+    const speed = boss ? computeMobSpeed(this.stage) * STAGE.bossSpeedMult : computeMobSpeed(this.stage);
+    const goldReward = boss ? STAGE.bossGold : computeMobGold();
+    const y = WORLD.laneCenterY + (Math.random() * 2 - 1) * (WORLD.laneHalfH * 0.55);
+    const mob = new Mob(this, -40, y, {
+      kind: boss ? 'boss' : 'normal',
+      hp,
+      speed,
+      goldReward,
+      ...(boss ? { bossTier: Math.floor(this.stage / STAGE.bossEvery) } : {}),
+    });
+    mob.setDepth(10);
+    this.mobs.push(mob);
+    this.mobsSpawnedThisStage += 1;
+    this.mobsToSpawn = Math.max(0, this.mobsToSpawn - 1);
+  }
+
+  private tryAttack(): boolean {
+    if (this.mobs.length === 0) return false;
+    const cx = this.character.x;
+    const cy = this.character.y;
+    const r = this.stats.range;
+    const hit: Mob[] = [];
+    for (const m of this.mobs) {
+      const dx = m.x - cx;
+      const dy = m.y - cy;
+      if (dx * dx + dy * dy <= r * r) hit.push(m);
+    }
+    if (hit.length === 0) return false;
+
+    this.character.playSwing(r, this.stats.batTier);
+
+    for (const m of hit) {
+      const dead = m.takeDamage(this.stats.damage);
+      if (dead) this.killMob(m);
+    }
+    return true;
+  }
+
+  private killMob(m: Mob): void {
+    const idx = this.mobs.indexOf(m);
+    if (idx >= 0) this.mobs.splice(idx, 1);
+
+    const isBoss = m.kind === 'boss';
+    this.gold += m.goldReward;
+    this.score += isBoss ? SCORE.perBossKill : SCORE.perMobKill;
+
+    this.spawnGoldOrb(m.x, m.y, m.goldReward);
+    this.deathBurst(m.x, m.y, isBoss);
+
+    m.destroy();
+
+    if (isBoss) {
+      gameBus.emit(BUS_EVENTS.bossKilled, { stage: this.stage, ticketEligible: true });
+    }
+    this.publishState();
+  }
+
+  private spawnGoldOrb(x: number, y: number, amount: number): void {
+    const c = this.add.container(x, y);
+    const g = this.add.graphics();
+    g.fillStyle(0xf6c531, 1);
+    g.lineStyle(2, 0xa8801a, 1);
+    g.fillCircle(0, 0, 11);
+    g.strokeCircle(0, 0, 11);
+    c.add(g);
+    const t = this.add.text(0, 0, `+${amount}`, {
       fontFamily: 'Pretendard, system-ui, sans-serif',
-      fontSize: '20px',
-      color: '#2c1d12',
+      fontSize: '13px',
+      color: '#5a3a0a',
       fontStyle: 'bold',
     });
     t.setOrigin(0.5);
+    c.add(t);
+    c.setDepth(20);
+    c.setData('life', 700);
+    this.goldOrbs.push(c);
+  }
 
-    const sub = this.add.text(
-      GAME_WIDTH / 2,
-      66,
-      `${GAME_WIDTH} × ${GAME_HEIGHT} 논리좌표 · Scale.FIT`,
-      {
-        fontFamily: 'Pretendard, system-ui, sans-serif',
-        fontSize: '14px',
-        color: '#5d4632',
+  private deathBurst(x: number, y: number, big: boolean): void {
+    const g = this.add.graphics();
+    g.setDepth(18);
+    const count = big ? 14 : 8;
+    const colors = big ? [0xffd35e, 0xff8c42, 0xe25555] : [0xffffff, 0xfceedb, 0xffd35e];
+    const dots: Array<{ x: number; y: number; vx: number; vy: number; c: number }> = [];
+    for (let i = 0; i < count; i += 1) {
+      const a = (Math.PI * 2 * i) / count + Math.random() * 0.4;
+      const sp = (big ? 200 : 120) + Math.random() * 80;
+      dots.push({
+        x: 0,
+        y: 0,
+        vx: Math.cos(a) * sp,
+        vy: Math.sin(a) * sp,
+        c: colors[i % colors.length]!,
+      });
+    }
+    const lifeMs = big ? 600 : 380;
+    this.tweens.add({
+      targets: { t: 0 },
+      t: 1,
+      duration: lifeMs,
+      onUpdate: (tw) => {
+        const t = tw.getValue() as number;
+        g.clear();
+        for (const d of dots) {
+          const px = x + d.vx * t * 0.5;
+          const py = y + d.vy * t * 0.5;
+          g.fillStyle(d.c, 1 - t);
+          g.fillCircle(px, py, (big ? 6 : 4) * (1 - t * 0.6));
+        }
       },
+      onComplete: () => g.destroy(),
+    });
+  }
+
+  private takeLifeHit(): void {
+    this.hp = Math.max(0, this.hp - 1);
+    this.cameras.main.shake(180, 0.009);
+    this.cameras.main.flash(180, 226, 85, 85);
+    this.toast('-1 라이프', 'warn', 700);
+    if (this.hp <= 0) {
+      this.endGame();
+    } else {
+      this.publishState();
+    }
+  }
+
+  private endGame(): void {
+    this.isGameOver = true;
+    this.isInterStage = true;
+    for (const m of this.mobs) m.destroy();
+    this.mobs = [];
+    this.publishState();
+  }
+
+  private restart(): void {
+    this.isGameOver = false;
+    this.isInterStage = false;
+    this.hp = STATS.baseHp;
+    this.hpMax = STATS.baseHp;
+    this.gold = 0;
+    this.score = 0;
+    this.stage = 1;
+    this.stats = initialStats();
+    this.character.drawRange(this.stats.range);
+    this.character.drawBat(-0.35, this.stats.batTier);
+    this.startStage(1);
+  }
+
+  private tryUpgrade(kind: UpgradeKind): void {
+    if (this.isGameOver) return;
+    const cost = this.stats.damageTier !== undefined ? undefined : undefined; // tsc placeholder
+    const c =
+      kind === 'damage'
+        ? STATS.damageCosts[this.stats.damageTier]
+        : kind === 'speed'
+          ? STATS.speedCosts[this.stats.speedTier]
+          : kind === 'range'
+            ? STATS.rangeCosts[this.stats.rangeTier]
+            : STATS.batCosts[this.stats.batTier];
+    void cost;
+    if (c === undefined) {
+      this.toast('최대 강화', 'warn', 900);
+      return;
+    }
+    if (this.gold < c) {
+      this.toast('골드 부족', 'warn', 700);
+      return;
+    }
+    this.gold -= c;
+    this.stats = applyUpgrade(kind, this.stats);
+    this.character.drawRange(this.stats.range);
+    this.character.drawBat(-0.35, this.stats.batTier);
+    const labels: Record<UpgradeKind, string> = {
+      damage: '데미지 +',
+      speed: '공속 +',
+      range: '사거리 +',
+      bat: '빠따 교체!',
+    };
+    this.toast(labels[kind], 'success', 700);
+    this.publishState();
+  }
+
+  private toast(text: string, variant: 'info' | 'success' | 'warn' | 'reward', durationMs = 1200): void {
+    gameBus.emit(BUS_EVENTS.toast, { text, variant, durationMs });
+  }
+
+  private publishState(): void {
+    gameBus.emit(
+      BUS_EVENTS.state,
+      snapshotState({
+        hp: this.hp,
+        hpMax: this.hpMax,
+        gold: this.gold,
+        stage: this.stage,
+        score: this.score,
+        mobsRemaining: this.mobs.length + this.mobsToSpawn,
+        stats: this.stats,
+        isGameOver: this.isGameOver,
+      }),
     );
-    sub.setOrigin(0.5);
   }
 }

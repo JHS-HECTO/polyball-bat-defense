@@ -1,0 +1,83 @@
+.panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--z-hud);
+  padding: 1.2rem 1.4rem 1.6rem;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.8rem;
+}
+
+.btn {
+  position: relative;
+  display: grid;
+  grid-template-areas:
+    'title tier'
+    'sub sub'
+    'cost cost';
+  gap: 0.2rem;
+  padding: 0.8rem 1rem;
+  background: var(--colors-surface-card);
+  border: 0.2rem solid var(--colors-stroke-soft);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-1);
+  color: var(--colors-text-primary);
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  text-align: left;
+  font-family: inherit;
+  transition: transform 0.1s var(--ease-out-soft), box-shadow 0.12s var(--ease-out-soft), background 0.12s;
+
+  &:active {
+    transform: scale(0.97);
+    box-shadow: none;
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+.btnAffordable {
+  border-color: var(--colors-primary1);
+  background: linear-gradient(180deg, #fff7ea 0%, #ffe9c4 100%);
+}
+
+.btnMax {
+  background: var(--colors-surface-panel);
+  opacity: 0.7;
+}
+
+.title {
+  grid-area: title;
+  font-size: 1.4rem;
+  font-weight: 800;
+}
+
+.tier {
+  grid-area: tier;
+  justify-self: end;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--colors-text-secondary);
+}
+
+.sub {
+  grid-area: sub;
+  font-size: 1.2rem;
+  color: var(--colors-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.cost {
+  grid-area: cost;
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--colors-primary3);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}

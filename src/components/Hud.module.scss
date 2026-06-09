@@ -1,0 +1,140 @@
+.hud {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: var(--z-hud);
+  padding: 1rem 1.6rem 0.6rem;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  color: var(--colors-text-primary);
+}
+
+.row1, .row2, .row3 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.nickBlock {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.nick {
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+.team {
+  font-size: 1.1rem;
+  color: var(--colors-text-secondary);
+}
+
+.ticketBlock {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 1rem;
+  background: var(--colors-ticket);
+  border-radius: var(--radius-pill);
+  font-weight: 700;
+  font-size: 1.4rem;
+  color: var(--colors-text-primary);
+  box-shadow: var(--shadow-1);
+}
+
+.ticketIcon {
+  font-size: 1.6rem;
+}
+
+.stageBlock,
+.scoreBlock {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.05;
+}
+
+.stageLabel,
+.scoreLabel {
+  font-size: 1.1rem;
+  color: var(--colors-text-secondary);
+  letter-spacing: 0.04em;
+}
+
+.stageValue,
+.scoreValue {
+  font-size: 2rem;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.scoreBlock {
+  text-align: right;
+  align-items: flex-end;
+}
+
+.stageBoss {
+  color: var(--colors-boss);
+}
+
+.bossPill {
+  background: var(--colors-boss);
+  color: var(--colors-text-inverse);
+  font-size: 1rem;
+  font-weight: 700;
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--radius-pill);
+  letter-spacing: 0.06em;
+}
+
+.hpBlock {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.hpLabel {
+  display: flex;
+  justify-content: space-between;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--colors-text-secondary);
+}
+
+.hpBar {
+  height: 1rem;
+  background: var(--colors-hp-bg);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  border: 0.1rem solid var(--colors-stroke-strong);
+}
+
+.hpFill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--colors-hp) 0%, #ff8c8c 100%);
+  transition: width 0.18s var(--ease-out-soft);
+}
+
+.goldBlock {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 1rem;
+  background: var(--colors-gold);
+  border-radius: var(--radius-pill);
+  font-weight: 700;
+  font-size: 1.4rem;
+  box-shadow: var(--shadow-1);
+}
+
+.goldIcon {
+  font-size: 1.6rem;
+}
