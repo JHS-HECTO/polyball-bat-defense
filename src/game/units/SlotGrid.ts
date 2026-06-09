@@ -1,25 +1,24 @@
-// 12 슬롯 — 가로 path (y=520) 위/아래 잔디 영역에 분포.
-// 위: 3 cols × 2 rows = 6, 아래: 3 cols × 2 rows = 6.
+// 12 슬롯 — 사각 loop 안쪽 중앙 영역.
+// loop 좌표 (240~800 y, 80~460 x) 내부 (320~720 y, 140~400 x)에 배치.
 
 import type { Unit } from './Unit';
 
 export type SlotPosition = { index: number; x: number; y: number };
 
 export const SLOT_POSITIONS: SlotPosition[] = [
-  // 위쪽 (y=220, 360 / x=120, 270, 420)
-  { index: 0, x: 120, y: 220 },
-  { index: 1, x: 270, y: 220 },
-  { index: 2, x: 420, y: 360 },
-  { index: 3, x: 120, y: 360 },
-  { index: 4, x: 270, y: 360 },
-  { index: 5, x: 420, y: 220 },
-  // 아래쪽 (y=680, 820 / x=120, 270, 420)
-  { index: 6, x: 120, y: 680 },
-  { index: 7, x: 270, y: 680 },
-  { index: 8, x: 420, y: 680 },
-  { index: 9, x: 120, y: 820 },
-  { index: 10, x: 270, y: 820 },
-  { index: 11, x: 420, y: 820 },
+  // 3 cols (x=160, 270, 380) × 4 rows (y=340, 460, 580, 700) = 12
+  { index: 0, x: 160, y: 340 },
+  { index: 1, x: 270, y: 340 },
+  { index: 2, x: 380, y: 340 },
+  { index: 3, x: 160, y: 460 },
+  { index: 4, x: 270, y: 460 },
+  { index: 5, x: 380, y: 460 },
+  { index: 6, x: 160, y: 580 },
+  { index: 7, x: 270, y: 580 },
+  { index: 8, x: 380, y: 580 },
+  { index: 9, x: 160, y: 700 },
+  { index: 10, x: 270, y: 700 },
+  { index: 11, x: 380, y: 700 },
 ];
 
 export class SlotGrid {
@@ -58,7 +57,7 @@ export class SlotGrid {
     return SLOT_POSITIONS.find((p) => p.index === slotIndex);
   }
 
-  findSlotAt(x: number, y: number, tolerance = 60): SlotPosition | null {
+  findSlotAt(x: number, y: number, tolerance = 64): SlotPosition | null {
     let best: SlotPosition | null = null;
     let bestDist = tolerance * tolerance;
     for (const p of SLOT_POSITIONS) {

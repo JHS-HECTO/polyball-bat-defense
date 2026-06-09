@@ -229,13 +229,12 @@ export class MainScene extends Phaser.Scene {
   }
 
   private drawPath(): void {
-    // 가로 lane (좌→우) + 4면 나무 펜스 (레퍼런스 톤)
-    const head = PATH_POINTS[0]!;
-    const tail = PATH_POINTS[PATH_POINTS.length - 1]!;
-    const cy = head.y;
-    const xLeft = head.x - 10;
-    const xRight = tail.x + 10;
-    const halfH = PATH_WIDTH / 2;
+    // 사각 loop 경로 + 4면 나무 펜스
+    const top = 240;
+    const bot = 800;
+    const left = 80;
+    const right = 460;
+    const halfW = PATH_WIDTH / 2;
     // 아레나 경계
     const arenaTop = 160;
     const arenaBot = 950;
@@ -243,26 +242,39 @@ export class MainScene extends Phaser.Scene {
     const arenaRight = 516;
     const plankColor = 0x8b5a2b;
     const plankShadow = 0x4d2e10;
-    // 그림자
+    // 아레나 그림자
     const sh = this.add.graphics();
     sh.setDepth(2);
     sh.fillStyle(0x2c1d12, 0.18);
     sh.fillRoundedRect(arenaLeft - 4, arenaTop - 4, arenaRight - arenaLeft + 8, arenaBot - arenaTop + 8, 6);
 
-    // dirt path 본체
+    // dirt loop 경로 (사각 ring)
     const lane = this.add.graphics();
     lane.setDepth(3);
     lane.fillStyle(PALETTE.path, 1);
-    lane.fillRect(xLeft, cy - halfH, xRight - xLeft, halfH * 2);
+    // 4 모서리 라인 + 모서리 둥글게
+    lane.fillRect(left - halfW, top - halfW, right - left + halfW * 2, halfW * 2); // top
+    lane.fillRect(left - halfW, bot - halfW, right - left + halfW * 2, halfW * 2); // bot
+    lane.fillRect(left - halfW, top - halfW, halfW * 2, bot - top + halfW * 2);    // left
+    lane.fillRect(right - halfW, top - halfW, halfW * 2, bot - top + halfW * 2);   // right
+
     // 점박이
     const speckle = this.add.graphics();
     speckle.setDepth(4);
     speckle.fillStyle(PALETTE.pathDark, 0.55);
-    for (let i = 0; i < 80; i += 1) {
-      const x = xLeft + Math.random() * (xRight - xLeft);
-      const y = cy + (Math.random() - 0.5) * halfH * 1.8;
-      speckle.fillCircle(x, y, 1 + Math.random() * 1.5);
-    }
+    const drawSpecOnSegment = (x1: number, y1: number, x2: number, y2: number) => {
+      const samples = 25;
+      for (let i = 0; i < samples; i += 1) {
+        const t = i / samples;
+        const x = x1 + (x2 - x1) * t + (Math.random() - 0.5) * halfW;
+        const y = y1 + (y2 - y1) * t + (Math.random() - 0.5) * halfW;
+        speckle.fillCircle(x, y, 1 + Math.random() * 1.4);
+      }
+    };
+    drawSpecOnSegment(left, top, right, top);
+    drawSpecOnSegment(right, top, right, bot);
+    drawSpecOnSegment(right, bot, left, bot);
+    drawSpecOnSegment(left, bot, left, top);
 
     // 4면 펜스 — Top
     const fence = this.add.graphics();
@@ -293,13 +305,11 @@ export class MainScene extends Phaser.Scene {
       fence.fillCircle(x + 4, arenaBot - plankH + 4, 1);
       fence.fillCircle(x + topPlankW - 4, arenaBot - plankH + 4, 1);
     }
-    // 좌측 — path 들어오는 곳은 게이트 (gap)
+    // 좌측 전체 펜스 (loop는 사각 안에서 도므로 사방 다 막아도 OK)
     const sidePlanks = 20;
     const sidePlankH = (arenaBot - arenaTop) / sidePlanks;
     for (let i = 0; i < sidePlanks; i += 1) {
       const y = arenaTop + i * sidePlankH;
-      // path 통과 영역 스킵 (cy - halfH ~ cy + halfH 사이 게이트)
-      if (y + sidePlankH > cy - halfH - 4 && y < cy + halfH + 4) continue;
       fence.fillStyle(plankColor, 1);
       fence.lineStyle(1.5, plankShadow, 1);
       fence.fillRect(arenaLeft, y + 1, plankWv, sidePlankH - 2);
@@ -308,10 +318,9 @@ export class MainScene extends Phaser.Scene {
       fence.fillCircle(arenaLeft + 4, y + 4, 1);
       fence.fillCircle(arenaLeft + 4, y + sidePlankH - 4, 1);
     }
-    // 우측 — 알/성 영역도 게이트
+    // 우측 전체 펜스
     for (let i = 0; i < sidePlanks; i += 1) {
       const y = arenaTop + i * sidePlankH;
-      if (y + sidePlankH > cy - halfH - 4 && y < cy + halfH + 4) continue;
       fence.fillStyle(plankColor, 1);
       fence.lineStyle(1.5, plankShadow, 1);
       fence.fillRect(arenaRight - plankWv, y + 1, plankWv, sidePlankH - 2);
@@ -336,10 +345,10 @@ export class MainScene extends Phaser.Scene {
   }
 
   private drawFlagAndCastle(): void {
-    // 시작 쪽 (왼쪽) 깃발 + 끝 쪽 (오른쪽) 알/성채
-    this.drawFlag(20, 520);
-    this.drawCastle(498, 520);
-    this.drawEgg(EGG_POSITION.x, EGG_POSITION.y - 8);
+    // 알 + 성 = loop 중앙 (디펜드 목표). 깃발 = 시작 모서리.
+    this.drawFlag(80, 240);
+    this.drawCastle(EGG_POSITION.x, EGG_POSITION.y);
+    this.drawEgg(EGG_POSITION.x, EGG_POSITION.y - 40);
   }
 
   private drawEgg(x: number, y: number): void {

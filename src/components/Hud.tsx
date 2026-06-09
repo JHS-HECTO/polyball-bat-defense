@@ -17,55 +17,34 @@ export const Hud = () => {
 
   return (
     <div className={styles.hud}>
-      <div className={styles.row1}>
-        <div className={styles.nickBlock}>
-          <div className={styles.nick}>{player?.nickname ?? '게스트'}</div>
-          {player?.team ? <div className={styles.team}>{player.team}</div> : null}
+      <div className={styles.bar}>
+        <div className={styles.cell}>
+          <span className={styles.lbl}>{player?.nickname ?? '게스트'}</span>
         </div>
-        <div className={styles.ticketBlock} aria-label="오늘 응모권">
-          <span className={styles.ticketIcon} aria-hidden>
-            🎟
-          </span>
-          <span className={styles.ticketCount}>
-            {ticketsToday} / {DAILY_CAP}
-          </span>
+        <div
+          className={clsx(styles.cell, styles.stage, state.isBossStage ? styles.boss : null)}
+        >
+          <span className={styles.k}>WAVE</span> {state.stage}
+          {state.isBossStage ? <span className={styles.bossPill}>BOSS</span> : null}
         </div>
-      </div>
-      <div className={styles.row2}>
-        <div className={styles.stageBlock}>
-          <div className={styles.stageLabel}>스테이지</div>
-          <div
-            className={clsx(
-              styles.stageValue,
-              state.isBossStage ? styles.stageBoss : null,
-            )}
-          >
-            {state.stage}
-            {state.isBossStage ? <span className={styles.bossPill}>BOSS</span> : null}
-          </div>
-        </div>
-        <div className={styles.scoreBlock}>
-          <div className={styles.scoreLabel}>점수</div>
-          <div className={styles.scoreValue}>{state.score.toLocaleString()}</div>
+        <div className={styles.cell}>
+          <span className={styles.k}>점수</span> {state.score.toLocaleString()}
         </div>
       </div>
-      <div className={styles.row3}>
-        <div className={styles.hpBlock}>
-          <div className={styles.hpLabel}>
-            <span>라이프</span>
-            <span>
-              {state.hp} / {state.hpMax}
-            </span>
-          </div>
+      <div className={styles.bar2}>
+        <div className={styles.hpWrap}>
           <div className={styles.hpBar}>
             <div className={styles.hpFill} style={{ width: `${hpRatio * 100}%` }} />
           </div>
-        </div>
-        <div className={styles.goldBlock} aria-label="골드">
-          <span className={styles.goldIcon} aria-hidden>
-            ⛁
+          <span className={styles.hpText}>
+            {state.hp}/{state.hpMax}
           </span>
-          <span className={styles.goldValue}>{state.gold.toLocaleString()}</span>
+        </div>
+        <div className={styles.pill}>
+          ⛁ {state.gold.toLocaleString()}
+        </div>
+        <div className={styles.pill}>
+          🎟 {ticketsToday}/{DAILY_CAP}
         </div>
       </div>
     </div>

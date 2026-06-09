@@ -11,19 +11,23 @@ export const WORLD = {
   characterY: 605,
 } as const;
 
-// 가로 lane (좌→우). 알키우기 스타일 — 몹이 왼쪽에서 들어와 오른쪽 알/성채로.
-// 슬롯: lane 위/아래 잔디 영역에 분포.
+// 사각 loop 경로 — 몹이 시계방향으로 주변을 빙글빙글 돔
+// 4 모서리. 시작=좌상단, 우상단→우하단→좌하단→다시 좌상단 (closed loop)
+// 슬롯: loop 안쪽 중앙 영역에 배치.
 export const PATH_POINTS: ReadonlyArray<{ x: number; y: number }> = [
-  { x: -30, y: 520 },  // 시작 (왼쪽 화면 밖)
-  { x: 570, y: 520 },  // 끝 (오른쪽 화면 밖 — 알/성채 도착)
+  { x: 80, y: 240 },   // 좌상
+  { x: 460, y: 240 },  // 우상
+  { x: 460, y: 800 },  // 우하
+  { x: 80, y: 800 },   // 좌하
+  { x: 80, y: 240 },   // 다시 좌상 (closed loop)
 ];
 
-export const PATH_WIDTH = 92;
-export const PATH_EDGE_WIDTH = 102;
+export const PATH_WIDTH = 70;
+export const PATH_EDGE_WIDTH = 80;
 
-// 알/성채 디펜더 영역 좌표
-export const EGG_POSITION = { x: 470, y: 520 } as const;
-export const CASTLE_POSITION = { x: 520, y: 520 } as const;
+// 알/성채 위치 (loop 안쪽 중앙) — 디펜드 목표
+export const EGG_POSITION = { x: 270, y: 520 } as const;
+export const CASTLE_POSITION = { x: 270, y: 520 } as const;
 
 export const PALETTE = {
   surfaceBase: 0xfff7ea,
